@@ -499,7 +499,7 @@ class _DashboardState extends State<Dashboard> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 itemCount: drawerList.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
                 itemBuilder: (context, index) {
                   final item = drawerList[index];
                   return ListTile(
@@ -571,7 +571,7 @@ class _DashboardState extends State<Dashboard> {
                   childAspectRatio: 1.4,
                 ),
                 itemCount: 6,
-                itemBuilder: (_, __) =>
+                itemBuilder: (_, _) =>
                     const SkeletalLoader(height: 100, borderRadius: 20),
               ),
             ),

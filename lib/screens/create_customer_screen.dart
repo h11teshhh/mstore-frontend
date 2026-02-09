@@ -412,10 +412,12 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                     counterText: "",
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return "Mobile is required";
-                    if (value.length != 10)
+                    }
+                    if (value.length != 10) {
                       return "Enter valid 10-digit mobile";
+                    }
                     return null;
                   },
                 ),
@@ -454,8 +456,9 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                       ),
                       validator: (value) {
                         if (_isOtherSelected &&
-                            (value == null || value.isEmpty))
+                            (value == null || value.isEmpty)) {
                           return "Please enter the location";
+                        }
                         return null;
                       },
                     ),

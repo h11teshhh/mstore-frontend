@@ -493,8 +493,9 @@ class _BillsScreenState extends State<BillsScreen> {
                           );
                         }),
                         onChanged: (val) {
-                          if (val != null)
+                          if (val != null) {
                             setState(() => selectedBillIndex[cid] = val);
+                          }
                         },
                       ),
                     ),
