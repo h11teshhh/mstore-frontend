@@ -1,15 +1,18 @@
 import 'dart:io';
-import 'dart:math'; // For random if needed
+import 'dart:math'; // For random/math
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Status Bar
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart'; // Recommended for older Android
+import 'package:device_info_plus/device_info_plus.dart';
 
 import '../api/api_service.dart';
 import '../utils/bill_pdf.dart';
 import '../utils/app_constants.dart';
-import '../utils/skeletal_loader.dart'; // ✅ Imported Skeleton
+import '../utils/ui_utils.dart'; // ✅ UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Skeleton
 
 class BillsScreen extends StatefulWidget {
   const BillsScreen({super.key});
@@ -38,7 +41,7 @@ class _BillsScreenState extends State<BillsScreen> {
     loadCustomers();
   }
 
-  // 1. Load Customers & Areas (UNTOUCHED LOGIC)
+  // 1. Load Customers & Areas
   Future<void> loadCustomers() async {
     try {
       final res = await api.getCustomers();
@@ -56,14 +59,14 @@ class _BillsScreenState extends State<BillsScreen> {
         areas.sort();
       });
     } catch (e) {
-      showSnack("Failed to load customers: $e", isError: true);
+      UIUtils.showErrorToast("Failed to load customers: $e");
     }
   }
 
-  // 2. Fetch Bills (UNTOUCHED LOGIC)
+  // 2. Fetch Bills
   Future<void> fetchBills() async {
     if (selectedArea == null || selectedArea!.isEmpty) {
-      showSnack("Please select an area first", isError: true);
+      UIUtils.showErrorToast("Please select an area first");
       return;
     }
 
@@ -96,13 +99,13 @@ class _BillsScreenState extends State<BillsScreen> {
         selectedBillIndex[cid] = 0;
       }
     } catch (e) {
-      showSnack("Failed to fetch bills: $e", isError: true);
+      UIUtils.showErrorToast("Failed to fetch bills: $e");
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // 3. Handle PDF Actions (UNTOUCHED LOGIC)
+  // 3. Handle PDF Actions
   Future<void> _handlePdfAction(String cid, String action) async {
     final index = selectedBillIndex[cid] ?? 0;
     final orders = billsByCustomer[cid];
@@ -146,70 +149,97 @@ class _BillsScreenState extends State<BillsScreen> {
     } else if (action == 'print') {
       await Printing.layoutPdf(onLayout: (_) async => pdf.save());
     } else if (action == 'download') {
-      try {
-        final bytes = await pdf.save();
-        final name = (customer["name"] ?? "Customer").toString().replaceAll(
-          RegExp(r'[^\w\s]+'),
-          '',
-        );
-        final date = DateFormat('ddMMyy').format(DateTime.now());
-        final fileName = "Bill_${name}_${customer["id"]}_$date.pdf";
-
-        Directory dir;
-        if (Platform.isAndroid) {
-          dir = (await getExternalStorageDirectory())!;
-        } else {
-          dir = await getApplicationDocumentsDirectory();
-        }
-
-        final savePath = "${dir.path}/$fileName";
-        final file = File(savePath);
-        await file.writeAsBytes(bytes);
-
-        showSnack("Saved to Downloads: $fileName");
-      } catch (e) {
-        showSnack("Save Failed: $e", isError: true);
-      }
+      // ✅ FIX: DOWNLOAD LOGIC
+      await _savePdfFile(
+        await pdf.save(),
+        customer["name"]?.toString() ?? "Customer",
+        customer["id"]?.toString() ?? "0",
+      );
     }
   }
 
-  void showSnack(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-        backgroundColor: isError ? AppColors.danger : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
-      ),
-    );
+  // ✅ 4. Helper: Save PDF to User Download Folder
+  Future<void> _savePdfFile(
+    List<int> bytes,
+    String customerName,
+    String customerId,
+  ) async {
+    try {
+      bool permissionGranted = false;
+
+      // 1. Check Android Version & Permission Logic
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+        // Android 10 (SDK 29) and above: No permission needed for public Downloads
+        if (androidInfo.version.sdkInt >= 29) {
+          permissionGranted = true;
+        } else {
+          // Android 9 and below: Request Write Permission
+          var status = await Permission.storage.status;
+          if (status.isGranted) {
+            permissionGranted = true;
+          } else {
+            status = await Permission.storage.request();
+            permissionGranted = status.isGranted;
+          }
+        }
+      } else {
+        // iOS or other platforms (usually sandbox, so true)
+        permissionGranted = true;
+      }
+
+      if (!permissionGranted) {
+        UIUtils.showErrorToast("Storage permission denied. Cannot save file.");
+        return;
+      }
+
+      // 2. Get Public Download Path
+      Directory? directory;
+      if (Platform.isAndroid) {
+        // Direct path to public Downloads folder
+        directory = Directory('/storage/emulated/0/Download');
+
+        // Fallback: If that path doesn't exist, use standard method
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      // 3. Create File Name
+      final date = DateFormat('ddMMyy').format(DateTime.now());
+      // Clean filename to remove bad characters
+      final cleanName = customerName.replaceAll(RegExp(r'[^\w\s]+'), '');
+      final fileName = "Bill_${cleanName}_${customerId}_$date.pdf";
+
+      final savePath = "${directory!.path}/$fileName";
+      final file = File(savePath);
+
+      // 4. Write File
+      await file.writeAsBytes(bytes);
+
+      // 5. Success UI
+      UIUtils.showSuccessToast("Saved to Downloads: $fileName");
+    } catch (e) {
+      UIUtils.showErrorToast("Save Failed: $e");
+    }
   }
 
   // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final double topOffset = size.height * 0.08; // 20-25% visual upside
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
       extendBodyBehindAppBar: true,
 
-      // ✅ 1. SNEAT APP BAR
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.9),
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
+        // ✅ Status Bar Visibility
         systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -229,7 +259,7 @@ class _BillsScreenState extends State<BillsScreen> {
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: AppColors.textHeading,
+                color: Color(0xFF566a7f),
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -242,16 +272,36 @@ class _BillsScreenState extends State<BillsScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
           ),
         ),
         actions: [
+          // Bulk Print (Placeholder Style)
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 12.0),
             child: IconButton(
-              icon: const Icon(Icons.print_outlined, color: AppColors.primary),
               onPressed: () {
-                // Bulk print action (future scope)
+                UIUtils.showSuccessToast("Bulk print feature coming soon");
               },
+              tooltip: "Bulk Print",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.print_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
           ),
         ],
@@ -259,7 +309,10 @@ class _BillsScreenState extends State<BillsScreen> {
 
       body: Column(
         children: [
-          SizedBox(height: topOffset + kToolbarHeight),
+          // Spacer for AppBar + Offset
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
 
           // 2. CONTROL CARD (Area Selector)
           Padding(
@@ -357,7 +410,7 @@ class _BillsScreenState extends State<BillsScreen> {
           // 3. BILL LIST
           Expanded(
             child: isLoading
-                ? _buildSkeletonList() // ✅ USING SKELETON LOADER
+                ? _buildSkeletonList() // ✅ Skeleton Loader
                 : billsByCustomer.isEmpty
                 ? _buildEmptyState()
                 : ListView.separated(
@@ -379,7 +432,7 @@ class _BillsScreenState extends State<BillsScreen> {
     );
   }
 
-  // --- WIDGETS (UNTOUCHED LOGIC, RESTYLED) ---
+  // --- WIDGETS ---
 
   Widget _buildCustomerBillCard(String cid) {
     final customer = customerMap[cid]!;
@@ -647,7 +700,7 @@ class _BillsScreenState extends State<BillsScreen> {
     );
   }
 
-  // ✅ Skeleton Loader Implementation
+  // ✅ Skeleton Loader
   Widget _buildSkeletonList() {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
