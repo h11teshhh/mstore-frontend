@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For Status Bar Control
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
+import 'dart:async'; // For Timeout
+
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart';
+import '../utils/ui_utils.dart'; // ✅ Using your UIUtils class
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class CustomerDetailScreen extends StatefulWidget {
   const CustomerDetailScreen({super.key});
@@ -26,6 +30,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
   late String customerId;
 
   bool _isInit = true;
+  bool _isTimeout = false; // ✅ Timeout State
 
   @override
   void initState() {
@@ -40,6 +45,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args == null) {
         setState(() => loading = false);
+        // ✅ Using UIUtils for Error
         UIUtils.showErrorToast("No Customer ID provided");
         return;
       }
@@ -55,27 +61,51 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     super.dispose();
   }
 
+  // ✅ CODE REUSABILITY: Reusable Timeout Helper
+  Future<T> fetchWithTimeout<T>(Future<T> Function() apiCall) async {
+    try {
+      return await apiCall().timeout(
+        const Duration(seconds: 45), // 30-45 sec rule
+        onTimeout: () => throw TimeoutException("No data found"),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> fetchCustomerDetails() async {
     setState(() {
       loading = true;
       errorMessage = null;
+      _isTimeout = false;
     });
 
     try {
-      final results = await Future.wait([
-        api.getCustomerById(customerId),
-        api.getOrdersByCustomer(customerId),
-        api.getPaymentsByCustomer(customerId),
-      ]);
+      // ✅ Using Timeout Helper
+      await fetchWithTimeout(() async {
+        final results = await Future.wait([
+          api.getCustomerById(customerId),
+          api.getOrdersByCustomer(customerId),
+          api.getPaymentsByCustomer(customerId),
+        ]);
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      setState(() {
-        customer = results[0].data;
-        orders = results[1].data ?? [];
-        payments = results[2].data ?? [];
-        loading = false;
+        setState(() {
+          customer = results[0].data;
+          orders = results[1].data ?? [];
+          payments = results[2].data ?? [];
+          loading = false;
+        });
       });
+    } on TimeoutException {
+      // ✅ Handle Timeout
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        _isTimeout = true;
+      });
+      UIUtils.showErrorToast("Request timed out. No data found.");
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -86,20 +116,19 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? e.message ?? msg;
       }
+      // ✅ Using UIUtils for Error
       UIUtils.showErrorToast(msg);
     }
   }
 
   // -----------------------------
-  // DATE FORMAT (DEVICE LOCAL - DATE ONLY)
+  // DATE FORMAT & CURRENCY
   // -----------------------------
   String _formatDate(String? isoDate) {
     if (isoDate == null || isoDate.isEmpty) return "N/A";
     try {
       final date = DateTime.parse(isoDate).toLocal();
-      // Device timezone automatically applied
       return DateFormat('dd MMM yyyy').format(date);
-      // Example: 08 Feb 2026
     } catch (e) {
       return isoDate;
     }
@@ -116,58 +145,138 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final double topOffset = MediaQuery.of(context).size.height * 0.12;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true,
+
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Customer Profile", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Customer Profile",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: fetchCustomerDetails,
+          // Interactive Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: () {
+                // ✅ Notify user we are refreshing
+                UIUtils.showProcessingSnackbar(
+                  context,
+                  message: "Refreshing data...",
+                );
+                fetchCustomerDetails();
+              },
+              tooltip: "Refresh Data",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
+      // ✅ 2. BODY STATES
       body: loading
-          ? _buildSkeletonLoader(topOffset)
+          ? _buildSkeletonLoader()
+          : _isTimeout
+          ? _buildNoDataFound()
           : customer == null
           ? _buildErrorState()
-          : Column(
-              children: [
-                SizedBox(height: topOffset * 0.5),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.cardPadding,
-                  ),
-                  child: _buildProfileCard(),
-                ),
-                const SizedBox(height: 20),
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textMuted,
-                  indicatorColor: AppColors.primary,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  tabs: [
-                    Tab(text: "ORDERS (${orders.length})"),
-                    Tab(text: "PAYMENTS (${payments.length})"),
+          : SingleChildScrollView(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height:
+                          kToolbarHeight +
+                          MediaQuery.of(context).padding.top +
+                          10,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.cardPadding,
+                      ),
+                      child: _buildProfileCard(),
+                    ),
+                    const SizedBox(height: 20),
+                    TabBar(
+                      controller: _tabController,
+                      labelColor: AppColors.primary,
+                      unselectedLabelColor: AppColors.textMuted,
+                      indicatorColor: AppColors.primary,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      tabs: [
+                        Tab(text: "ORDERS (${orders.length})"),
+                        Tab(text: "PAYMENTS (${payments.length})"),
+                      ],
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [_buildOrderList(), _buildPaymentList()],
+                      ),
+                    ),
                   ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [_buildOrderList(), _buildPaymentList()],
-                  ),
-                ),
-              ],
+              ),
             ),
     );
   }
+
+  // --- WIDGET COMPONENTS ---
 
   Widget _buildProfileCard() {
     final due =
@@ -177,11 +286,11 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.08),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -293,7 +402,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: const Color(0xFFF5F5F9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -358,7 +467,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: const Color(0xFFF5F5F9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -426,35 +535,94 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     );
   }
 
-  Widget _buildSkeletonLoader(double topOffset) {
+  // ✅ New "No Data Found" State (for Timeout)
+  Widget _buildNoDataFound() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            "No Data Found",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: fetchCustomerDetails,
+            icon: const Icon(Icons.refresh),
+            label: const Text("Retry"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Skeleton Loader Logic
+  Widget _buildSkeletonLoader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          SizedBox(height: topOffset * 0.5),
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
+          // Skeleton Profile Card
           Container(
-            height: 200,
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary.withOpacity(0.3),
-              ),
+            child: Column(
+              children: const [
+                Center(
+                  child: SkeletalLoader(
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                  ),
+                ),
+                SizedBox(height: 16),
+                SkeletalLoader(width: 150, height: 24),
+                SizedBox(height: 8),
+                SkeletalLoader(width: 200, height: 14),
+                SizedBox(height: 20),
+                Divider(),
+                SizedBox(height: 10),
+                SkeletalLoader(width: 100, height: 12),
+                SizedBox(height: 6),
+                SkeletalLoader(width: 120, height: 32),
+              ],
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
+          // Skeleton Tabs
+          Row(
+            children: const [
+              Expanded(
+                child: SkeletalLoader(width: double.infinity, height: 40),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: SkeletalLoader(width: double.infinity, height: 40),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Skeleton List
           Expanded(
             child: ListView.separated(
               itemCount: 4,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, _) => Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+              itemBuilder: (_, _) => const SkeletalLoader(
+                height: 80,
+                width: double.infinity,
+                borderRadius: 12,
               ),
             ),
           ),

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For Status Bar Control
 import 'package:dio/dio.dart';
+import 'dart:async'; // For UI delay
+
 import '../api/api_service.dart';
-import '../utils/app_constants.dart'; // Ensuring standard colors
+import '../utils/app_constants.dart';
+import '../utils/skeletal_loader.dart'; // ✅ Reusing your specific loader
 
 class CreateOrderScreen extends StatefulWidget {
   const CreateOrderScreen({super.key});
@@ -11,7 +15,7 @@ class CreateOrderScreen extends StatefulWidget {
 }
 
 class _CreateOrderScreenState extends State<CreateOrderScreen> {
-  // --- EXISTING LOGIC (UNTOUCHED) ---
+  // --- EXISTING LOGIC ---
   final ApiService api = ApiService();
   bool isLoading = false;
   List customers = [];
@@ -25,36 +29,118 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   Map<String, bool> quantityErrors = {};
   double totalBill = 0;
 
+  // UI State
+  bool _isInitLoading = true;
+  bool _isTimeout = false; // ✅ State for 45s Timeout
+
   @override
   void initState() {
     super.initState();
+    // Simulate a quick UI prep to show off the skeleton effect
+    Timer(const Duration(milliseconds: 1000), () {
+      if (mounted) setState(() => _isInitLoading = false);
+    });
     loadData();
   }
 
-  Future<void> loadData() async {
+  // ✅ CODE REUSABILITY: Reusable Timeout Helper
+  Future<T> fetchWithTimeout<T>(Future<T> Function() apiCall) async {
     try {
-      final customerRes = await api.getCustomers();
-      final inventoryRes = await api.getInventoryStock();
-
-      if (!mounted) return;
-
-      setState(() {
-        customers = customerRes.data;
-        inventory = inventoryRes.data;
-        areas = customers
-            .map<String>((c) => c["area"].toString())
-            .toSet()
-            .toList();
-        areas.sort();
-
-        for (var item in inventory) {
-          quantityControllers[item["id"]] = TextEditingController();
-          selectedItems[item["id"]] = false;
-          quantityErrors[item["id"]] = false;
-        }
-      });
+      return await apiCall().timeout(
+        const Duration(seconds: 45), // 30-45 sec rule
+        onTimeout: () => throw TimeoutException("No data found"),
+      );
     } catch (e) {
-      showCustomSnackBar("Failed to load data", isError: true);
+      rethrow;
+    }
+  }
+
+  // ✅ CODE REUSABILITY: Toast Helper (For Error/Success)
+  // Simulating a Toast using ScaffoldMessenger for 'copy-paste' compatibility
+  // without needing external packages like 'fluttertoast'.
+  void showToast(String message, {bool isError = false}) {
+    // Clear any existing snackbars/toasts first
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: isError ? AppColors.danger : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        width: 280, // Fixed width to look like a "Toast"
+        elevation: 6,
+        duration: const Duration(seconds: 2), // Short duration for Toasts
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+      ),
+    );
+  }
+
+  // ✅ CODE REUSABILITY: SnackBar Helper (For Wait/Continuous)
+  void showLoadingSnackBar(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(message),
+          ],
+        ),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.fixed, // Bottom fixed for continuous
+        duration: const Duration(
+          days: 1,
+        ), // Keeps showing until manually hidden
+      ),
+    );
+  }
+
+  Future<void> loadData() async {
+    if (mounted) setState(() => _isTimeout = false);
+
+    try {
+      // ✅ Using the reusable helper
+      await fetchWithTimeout(() async {
+        final customerRes = await api.getCustomers();
+        final inventoryRes = await api.getInventoryStock();
+
+        if (!mounted) return;
+
+        setState(() {
+          customers = customerRes.data;
+          inventory = inventoryRes.data;
+          areas = customers
+              .map<String>((c) => c["area"].toString())
+              .toSet()
+              .toList();
+          areas.sort();
+
+          for (var item in inventory) {
+            quantityControllers[item["id"]] = TextEditingController();
+            selectedItems[item["id"]] = false;
+            quantityErrors[item["id"]] = false;
+          }
+        });
+      });
+    } on TimeoutException {
+      if (mounted) setState(() => _isTimeout = true);
+    } catch (e) {
+      if (mounted) showToast("Failed to load data", isError: true);
     }
   }
 
@@ -82,13 +168,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   }
 
   Future<void> submitOrder() async {
-    // Validation
+    // --- Validation (Uses Toasts) ---
     if (selectedArea == null) {
-      showCustomSnackBar("Please select an area", isError: true);
+      showToast("Please select an area", isError: true);
       return;
     }
     if (selectedCustomerId == null) {
-      showCustomSnackBar("Please select a customer", isError: true);
+      showToast("Please select a customer", isError: true);
       return;
     }
 
@@ -101,17 +187,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         int qty = int.tryParse(qtyText) ?? 0;
 
         if (qty <= 0) {
-          showCustomSnackBar(
-            "Invalid quantity for ${item["item_name"]}",
-            isError: true,
-          );
+          showToast("Invalid quantity for ${item["item_name"]}", isError: true);
           return;
         }
         if (qty > stock) {
-          showCustomSnackBar(
-            "Not enough stock for ${item["item_name"]}",
-            isError: true,
-          );
+          showToast("Not enough stock for ${item["item_name"]}", isError: true);
           return;
         }
         items.add({"item_id": itemId, "quantity": qty});
@@ -119,53 +199,43 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     }
 
     if (items.isEmpty) {
-      showCustomSnackBar("Please select at least one item", isError: true);
+      showToast("Please select at least one item", isError: true);
       return;
     }
 
-    // Submit
+    // --- Start Continuous Process (Uses SnackBar) ---
     setState(() => isLoading = true);
+    showLoadingSnackBar("Processing Order..."); // Show "Wait" SnackBar
+
     try {
       await api.createOrder(customerId: selectedCustomerId!, items: items);
 
       if (!mounted) return;
+
+      // Stop Loading and Clear SnackBar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
 
-      _showSuccessDialog(); // New Interactive Dialog
+      showToast("Order Created Successfully!"); // Show Success Toast
+      _showSuccessDialog();
     } on DioException catch (e) {
+      // Clear Loading SnackBar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
+
       String msg = "Order failed";
       if (e.response?.data != null && e.response!.data is Map) {
         msg = e.response!.data["detail"]?.toString() ?? msg;
       }
-      showCustomSnackBar(msg, isError: true);
+      showToast(msg, isError: true); // Show Error Toast
     } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
-      showCustomSnackBar("Unexpected error occurred", isError: true);
+      showToast("Unexpected error occurred", isError: true); // Show Error Toast
     }
   }
 
   // --- UI HELPERS ---
-
-  void showCustomSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isError ? AppColors.danger : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
 
   void _showSuccessDialog() {
     showDialog(
@@ -179,7 +249,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Animated-style Icon Container
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -193,7 +262,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
               const Text(
                 "Order Placed!",
                 style: TextStyle(
@@ -209,7 +277,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -222,8 +289,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                     elevation: 4,
                   ),
                   onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Go back to dashboard
+                    Navigator.pop(context);
+                    Navigator.pop(context);
                   },
                   child: const Text(
                     "Done",
@@ -242,36 +309,94 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   }
 
   // --- MAIN BUILD ---
-
   @override
   Widget build(BuildContext context) {
-    // Calculate visual offset for the "Control Card"
-    final topOffset = MediaQuery.of(context).size.height * 0.02;
+    // Determine loading state
+    final bool isSkeletonVisible =
+        _isInitLoading ||
+        (customers.isEmpty && !_isTimeout) ||
+        (inventory.isEmpty && !_isTimeout);
+
+    final int selectedCount = selectedItems.values.where((e) => e).length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F9),
+      extendBodyBehindAppBar: true,
+
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.9),
+        elevation: 0,
+        centerTitle: true,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: AppColors.textHeading,
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
         title: const Text(
           "Create Order",
           style: TextStyle(
             color: Color(0xFF566a7f),
             fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF566a7f)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Chip(
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+              avatar: const Icon(
+                Icons.shopping_bag_outlined,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              label: Text(
+                "$selectedCount Items",
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      body: customers.isEmpty || inventory.isEmpty
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
+
+      body: isSkeletonVisible
+          ? _buildSkeletonLoader()
+          : _isTimeout
+          ? _buildNoDataFound() // ✅ Handle Timeout UI
           : Column(
               children: [
-                SizedBox(height: topOffset),
+                SizedBox(
+                  height:
+                      kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+                ),
 
-                // 1. CONTROL PANEL (Area & Customer)
+                // 1. CONTROL PANEL
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
@@ -308,7 +433,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           onChanged: (value) {
                             setState(() {
                               selectedArea = value;
-                              selectedCustomerId = null; // Reset customer
+                              selectedCustomerId = null;
                             });
                           },
                         ),
@@ -369,12 +494,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 // 3. SCROLLABLE LIST
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      0,
-                      16,
-                      100,
-                    ), // Extra padding at bottom for floating bar
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                     itemCount: inventory.length,
                     itemBuilder: (context, index) {
                       return _buildInventoryCard(inventory[index]);
@@ -385,96 +505,139 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
             ),
 
       // 4. BOTTOM TOTAL BAR
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      bottomNavigationBar: (isSkeletonVisible || _isTimeout)
+          ? null
+          : Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Row(
                   children: [
-                    Text(
-                      "TOTAL BILL",
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "TOTAL BILL",
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          // ✅ FIXED: FittedBox prevents bill overflow
+                          SizedBox(
+                            width: double.infinity,
+                            child: FittedBox(
+                              alignment: Alignment.centerLeft,
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                "₹${totalBill.toStringAsFixed(0)}",
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      "₹${totalBill.toStringAsFixed(0)}",
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 160,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : submitOrder,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 5,
+                          shadowColor: AppColors.primary.withOpacity(0.4),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            // ✅ FIXED: FittedBox prevents "PLACE ORDER" overflow
+                            : FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Text(
+                                      "PLACE ORDER",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
                       ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(
-                width: 160,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : submitOrder,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 5,
-                    shadowColor: AppColors.primary.withOpacity(0.4),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "PLACE ORDER",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
   // --- WIDGET COMPONENTS ---
+
+  Widget _buildNoDataFound() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            "No Data Found",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: loadData,
+            icon: const Icon(Icons.refresh),
+            label: const Text("Retry"),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildInventoryCard(Map<String, dynamic> item) {
     final itemId = item["id"];
@@ -483,7 +646,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     final isSelected = selectedItems[itemId] == true;
     final hasError = quantityErrors[itemId] == true;
     final isOutOfStock = stock <= 0;
-    final isLowStock = stock > 0 && stock < 10; // Assuming 10 is low
+    final isLowStock = stock > 0 && stock < 10;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -515,8 +678,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                   setState(() {
                     selectedItems[itemId] = !isSelected;
                     if (!selectedItems[itemId]!) {
-                      quantityControllers[itemId]!
-                          .clear(); // Clear if unchecked
+                      quantityControllers[itemId]!.clear();
                       calculateTotal();
                     }
                   });
@@ -525,7 +687,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Checkbox
                 Transform.scale(
                   scale: 1.1,
                   child: Checkbox(
@@ -547,10 +708,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           },
                   ),
                 ),
-
                 const SizedBox(width: 8),
-
-                // Item Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -569,10 +727,12 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      // ✅ FIXED: Wrap handles narrow screens better than Row
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
                         children: [
                           _buildStockBadge(stock, isOutOfStock, isLowStock),
-                          const SizedBox(width: 8),
                           Text(
                             "₹$price",
                             style: const TextStyle(
@@ -585,8 +745,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                     ],
                   ),
                 ),
-
-                // Quantity Input (Only show if selected)
                 if (isSelected)
                   SizedBox(
                     width: 90,
@@ -625,7 +783,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   Widget _buildStockBadge(int stock, bool isOut, bool isLow) {
     Color color = AppColors.success;
     String text = "$stock left";
-
     if (isOut) {
       color = Colors.grey;
       text = "Out of Stock";
@@ -633,7 +790,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       color = AppColors.warning;
       text = "Low: $stock";
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -681,6 +837,48 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
       ),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return Column(
+      children: [
+        SizedBox(
+          height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SkeletalLoader(width: 80, height: 12),
+                SizedBox(height: 8),
+                SkeletalLoader(width: double.infinity, height: 48),
+                SizedBox(height: 16),
+                SkeletalLoader(width: 80, height: 12),
+                SizedBox(height: 8),
+                SkeletalLoader(width: double.infinity, height: 48),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, __) =>
+                const SkeletalLoader(height: 80, borderRadius: 12),
+          ),
+        ),
+      ],
     );
   }
 }

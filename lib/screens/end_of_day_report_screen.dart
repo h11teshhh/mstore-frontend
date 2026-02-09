@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart';
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class EndOfDayReportScreen extends StatefulWidget {
   const EndOfDayReportScreen({super.key});
@@ -54,6 +56,7 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     }
   }
@@ -82,32 +85,97 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
   // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    // Positioning: 8% from top to be "20-25% upside from center"
-    final double topOffset = size.height * 0.08;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("End of Day Report", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "End of Day Report",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: loadReport,
+          // Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: () {
+                UIUtils.showProcessingSnackbar(
+                  context,
+                  message: "Refreshing report...",
+                );
+                loadReport();
+              },
+              tooltip: "Refresh Report",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
       body: isLoading
-          ? _buildSkeletonLoader(topOffset)
+          ? _buildSkeletonLoader() // ✅ Using SkeletalLoader
           : report == null
           ? _buildErrorState()
           : Column(
               children: [
-                SizedBox(height: topOffset * 0.5),
+                // Spacer for AppBar
+                SizedBox(
+                  height:
+                      kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+                ),
 
                 // 1. FINANCIAL HIGHLIGHTS CARD
                 Padding(
@@ -459,39 +527,66 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
   }
 
   // --- SKELETON LOADER ---
-  Widget _buildSkeletonLoader(double topOffset) {
+  Widget _buildSkeletonLoader() {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.cardPadding,
       ),
       child: Column(
         children: [
-          SizedBox(height: topOffset * 0.5),
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
           // Financial Card Skeleton
           Container(
-            height: 160,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary.withOpacity(0.3),
-              ),
+            child: Column(
+              children: const [
+                SkeletalLoader(width: 80, height: 10),
+                SizedBox(height: 10),
+                SkeletalLoader(width: 120, height: 20),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SkeletalLoader(width: double.infinity, height: 40),
+                    ),
+                    SizedBox(width: 20),
+                    Expanded(
+                      child: SkeletalLoader(width: double.infinity, height: 40),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
+          // Tabs Skeleton
+          Row(
+            children: const [
+              Expanded(
+                child: SkeletalLoader(width: double.infinity, height: 40),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: SkeletalLoader(width: double.infinity, height: 40),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           // List Skeletons
           Expanded(
             child: ListView.separated(
               itemCount: 4,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, _) => Container(
+              itemBuilder: (_, _) => const SkeletalLoader(
                 height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                width: double.infinity,
+                borderRadius: 12,
               ),
             ),
           ),

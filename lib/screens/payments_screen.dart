@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart';
-import '../utils/skeletal_loader.dart';
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
@@ -67,6 +68,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       });
     } catch (e) {
       setState(() => isAreaLoading = false);
+      // ✅ Using UIUtils
       UIUtils.showErrorToast("Failed to load areas");
     }
   }
@@ -110,6 +112,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     }
   }
@@ -185,9 +188,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
     // API Call
     setState(() => isLoading = true);
+    // ✅ Using UIUtils for Processing
+    UIUtils.showProcessingSnackbar(context, message: "Processing payment...");
+
     try {
       await api.customerPayment(customerId: cid, amount: amountToPay);
 
+      // ✅ Using UIUtils for Success
       UIUtils.showSuccessToast("Payment Recorded Successfully");
 
       // Clear input
@@ -208,6 +215,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils for Error
       UIUtils.showErrorToast(msg);
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -228,20 +236,96 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    // Positioning: 8% from top to be "20-25% upside from center"
     final double topOffset = size.height * 0.08;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Collect Payment", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Collect Payment",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          // Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: selectedArea != null
+                  ? () {
+                      fetchBills();
+                    }
+                  : null,
+              tooltip: "Refresh Bills",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: selectedArea != null ? Colors.white : Colors.grey[200],
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: selectedArea != null ? AppColors.primary : Colors.grey,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
+
       body: Column(
         children: [
-          SizedBox(height: topOffset * 0.5),
+          // Spacer for AppBar + TopOffset
+          SizedBox(
+            height:
+                kToolbarHeight +
+                MediaQuery.of(context).padding.top +
+                (topOffset * 0.5),
+          ),
 
           // 1. AREA SELECTOR (High Position)
           Padding(
@@ -288,7 +372,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             filled: true,
-                            fillColor: AppColors.background,
+                            fillColor: const Color(0xFFF5F5F9),
                             prefixIcon: const Icon(
                               Icons.location_on,
                               color: AppColors.primary,
@@ -357,7 +441,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           // 2. LIST OF CUSTOMERS WITH DUES
           Expanded(
             child: isLoading
-                ? _buildSkeletonList()
+                ? _buildSkeletonList() // ✅ Using SkeletalLoader
                 : billsByCustomer.isEmpty
                 ? _buildEmptyState()
                 : ListView.separated(
@@ -608,6 +692,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
+  // ✅ Skeleton Loader Logic
   Widget _buildSkeletonList() {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
@@ -616,8 +701,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       ),
       itemCount: 3,
       separatorBuilder: (_, _) => const SizedBox(height: 16),
-      itemBuilder: (_, _) =>
-          const SkeletalLoader(height: 220, borderRadius: 16),
+      itemBuilder: (_, _) => const SkeletalLoader(
+        height: 220,
+        width: double.infinity,
+        borderRadius: 16,
+      ),
     );
   }
 }

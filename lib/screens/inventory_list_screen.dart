@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'dart:async'; // For search debounce
+
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart'; // Ensure UIUtils is imported
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class InventoryListScreen extends StatefulWidget {
   const InventoryListScreen({super.key});
@@ -57,6 +60,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     }
   }
@@ -80,29 +84,94 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    // Positioning: 8% from top to be "20-25% upside from center"
-    final double topOffset = size.height * 0.08;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Inventory Stock", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Inventory Stock",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: fetchInventory,
+          // Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: () {
+                UIUtils.showProcessingSnackbar(
+                  context,
+                  message: "Refreshing inventory...",
+                );
+                fetchInventory();
+              },
+              tooltip: "Refresh Stock",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
       body: Column(
         children: [
-          SizedBox(height: topOffset * 0.5), // Responsive Top Spacer
-          // 1. SEARCH BAR (High Position)
+          // Spacer for AppBar
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
+
+          // 1. SEARCH BAR
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.cardPadding,
@@ -193,7 +262,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           // 3. LIST CONTENT
           Expanded(
             child: loading
-                ? _buildSkeletonList() // <--- SKELETON LOADER
+                ? _buildSkeletonList() // ✅ SKELETON LOADER
                 : RefreshIndicator(
                     onRefresh: fetchInventory,
                     color: AppColors.primary,
@@ -216,7 +285,8 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           ),
         ],
       ),
-      // Floating Action Button for quick add
+
+      // Floating Action Button
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
         onPressed: () {
@@ -254,7 +324,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -283,7 +353,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: AppColors.textHeading,
+            color: Color(0xFF566a7f),
           ),
         ),
         subtitle: Column(
@@ -372,7 +442,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     );
   }
 
-  // --- SKELETON LOADER ---
+  // ✅ SKELETON LOADER
   Widget _buildSkeletonList() {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
@@ -390,29 +460,25 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+            // Skeleton Icon
+            const SkeletalLoader(width: 48, height: 48, borderRadius: 10),
             const SizedBox(width: 16),
+            // Skeleton Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(width: 120, height: 14, color: Colors.grey[200]),
-                  const SizedBox(height: 8),
-                  Container(width: 80, height: 12, color: Colors.grey[100]),
-                  const SizedBox(height: 6),
-                  Container(width: 60, height: 10, color: Colors.grey[100]),
+                children: const [
+                  SkeletalLoader(width: 120, height: 14),
+                  SizedBox(height: 8),
+                  SkeletalLoader(width: 80, height: 12),
+                  SizedBox(height: 6),
+                  SkeletalLoader(width: 60, height: 10),
                 ],
               ),
             ),
-            Container(width: 40, height: 20, color: Colors.grey[200]),
+            // Skeleton Trailing
+            const SkeletalLoader(width: 40, height: 20),
           ],
         ),
       ),

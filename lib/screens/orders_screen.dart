@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart';
-import '../utils/skeletal_loader.dart';
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -67,7 +68,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
 
     try {
-      // API call: {{baseUrl}}/reports/bills/today?area=Kadodara
       final res = await api.getTodayBillsByArea(selectedArea!);
 
       if (!mounted) return;
@@ -93,23 +93,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
             double.tryParse(order["bill_amount"].toString()) ?? 0.0;
 
         if (!tempMap.containsKey(custId)) {
-          // Initialize customer entry
           tempMap[custId] = {
             "customer_name": custName,
             "total_customer_bill": 0.0,
             "order_count": 0,
-            "orders": [], // List of individual orders
+            "orders": [],
           };
         }
 
-        // Add to customer totals
         tempMap[custId]!["total_customer_bill"] += billAmount;
         tempMap[custId]!["order_count"] += 1;
         tempMap[custId]!["orders"].add(order);
       }
 
       setState(() {
-        groupedOrders = tempMap.values.toList(); // Convert Map back to List
+        groupedOrders = tempMap.values.toList();
         isLoading = false;
       });
     } catch (e) {
@@ -123,7 +121,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  // --- HELPER: Currency Formatter ---
   String _formatCurrency(dynamic amount) {
     double val = double.tryParse(amount?.toString() ?? "0") ?? 0.0;
     return NumberFormat.currency(
@@ -137,29 +134,101 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    // 20-25% visual upside offset
+    // ✅ 20-25% visual upside offset logic
     final double topOffset = size.height * 0.08;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9),
+      extendBodyBehindAppBar: true,
+
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Today's Orders", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Today's Orders",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: selectedArea != null ? fetchOrders : null,
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: selectedArea != null
+                  ? () {
+                      UIUtils.showProcessingSnackbar(
+                        context,
+                        message: "Refreshing orders...",
+                      );
+                      fetchOrders();
+                    }
+                  : null,
+              tooltip: "Refresh Orders",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: selectedArea != null ? Colors.white : Colors.grey[200],
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: selectedArea != null ? AppColors.primary : Colors.grey,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
       body: Column(
         children: [
-          SizedBox(height: topOffset * 0.5),
+          // ✅ FIX: Using topOffset here to push content down
+          SizedBox(
+            height:
+                kToolbarHeight +
+                MediaQuery.of(context).padding.top +
+                (topOffset * 0.5),
+          ),
 
-          // 1. AREA SELECTOR (High Position)
+          // 1. AREA SELECTOR
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.cardPadding,
@@ -208,7 +277,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             filled: true,
-                            fillColor: AppColors.background,
+                            fillColor: const Color(0xFFF5F5F9),
                             prefixIcon: const Icon(
                               Icons.location_on,
                               color: AppColors.primary,
@@ -230,7 +299,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           onChanged: (value) {
                             setState(() {
                               selectedArea = value;
-                              groupedOrders = []; // Clear old data
+                              groupedOrders = [];
                             });
                           },
                         ),
@@ -362,7 +431,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   // --- WIDGETS ---
 
-  // ✅ Grouped Customer Card
   Widget _buildGroupedCustomerCard(Map<String, dynamic> customerData) {
     final customerName = customerData["customer_name"];
     final totalBill = _formatCurrency(customerData["total_customer_bill"]);
@@ -417,8 +485,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
             const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
           ],
         ),
-
-        // Expanded List of Individual Orders
         children: [
           Container(
             color: const Color(0xFFF9FAFB),
@@ -437,12 +503,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  // ✅ Inner Row: Shows full Order ID & NO Time
   Widget _buildInnerOrderRow(Map<String, dynamic> order) {
     final bill = _formatCurrency(order["bill_amount"]);
     final items = order["items"] as List? ?? [];
-
-    // UPDATED: Use the FULL Actual Order ID
     final orderId = order["order_id"].toString();
 
     return Padding(
@@ -450,13 +513,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Order Header (No Time)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
-                  "Order #$orderId", // Full ID
+                  "Order #$orderId",
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -477,7 +539,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          // Items List
           ...items.map((item) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 2),
@@ -531,8 +592,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
       itemCount: 4,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (_, _) =>
-          const SkeletalLoader(height: 80, borderRadius: 12),
+      itemBuilder: (_, _) => const SkeletalLoader(
+        height: 80,
+        width: double.infinity,
+        borderRadius: 12,
+      ),
     );
   }
 }

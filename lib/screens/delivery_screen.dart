@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart';
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class DeliveryScreen extends StatefulWidget {
   const DeliveryScreen({super.key});
@@ -46,6 +48,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     }
   }
@@ -64,27 +67,89 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    // Positioning: 8% from top to be "20-25% upside from center"
-    final double topOffset = size.height * 0.08;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Delivery Load", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+        ),
+        title: const Text(
+          "Delivery Load",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: fetchTruckLoad,
+          // Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: () {
+                UIUtils.showProcessingSnackbar(
+                  context,
+                  message: "Refreshing manifest...",
+                );
+                fetchTruckLoad();
+              },
+              tooltip: "Refresh Data",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
+      // ✅ 2. BODY CONTENT
       body: isLoading
-          ? _buildSkeletonLoader(topOffset)
+          ? _buildSkeletonLoader() // ✅ Using SkeletalLoader
           : RefreshIndicator(
               onRefresh: fetchTruckLoad,
               color: AppColors.primary,
@@ -92,10 +157,15 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                   ? _buildEmptyState()
                   : Column(
                       children: [
+                        // Spacer for AppBar
                         SizedBox(
-                          height: topOffset * 0.5,
-                        ), // Responsive Top Spacer
-                        // 1. SUMMARY CARD (High Position)
+                          height:
+                              kToolbarHeight +
+                              MediaQuery.of(context).padding.top +
+                              20,
+                        ),
+
+                        // 1. SUMMARY CARD
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppDimensions.cardPadding,
@@ -255,7 +325,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.1)),
         boxShadow: [
@@ -271,7 +341,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.background,
+            color: const Color(0xFFF5F5F9),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(
@@ -339,15 +409,17 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
-  // --- SKELETON LOADER ---
-  Widget _buildSkeletonLoader(double topOffset) {
+  // ✅ SKELETON LOADER
+  Widget _buildSkeletonLoader() {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.cardPadding,
       ),
       child: Column(
         children: [
-          SizedBox(height: topOffset * 0.5),
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
           // Summary Card Skeleton
           Container(
             height: 100,
@@ -358,30 +430,21 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                const SkeletalLoader(width: 50, height: 50, borderRadius: 25),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(width: 80, height: 10, color: Colors.grey[200]),
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 150,
-                        height: 16,
-                        color: Colors.grey[200],
-                      ),
+                    children: const [
+                      SkeletalLoader(width: 80, height: 10),
+                      SizedBox(height: 10),
+                      SkeletalLoader(width: 150, height: 16),
                     ],
                   ),
                 ),
+                const SizedBox(width: 16),
+                const SkeletalLoader(width: 60, height: 50, borderRadius: 12),
               ],
             ),
           ),
@@ -391,12 +454,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             child: ListView.separated(
               itemCount: 5,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, _) => Container(
+              itemBuilder: (_, _) => const SkeletalLoader(
                 height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                width: double.infinity,
+                borderRadius: 12,
               ),
             ),
           ),

@@ -1,8 +1,11 @@
+import 'dart:ui'; // For Glassmorphism
 import 'package:flutter/material.dart';
-// For Glassmorphism
+import 'package:flutter/services.dart';
 import '../storage/token_storage.dart';
 import '../utils/role_helper.dart';
-import '../utils/app_constants.dart'; // Ensure this file exists
+import '../utils/app_constants.dart';
+import '../utils/ui_utils.dart'; // ✅ UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Skeleton
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -12,7 +15,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  // --- EXISTING LOGIC (UNTOUCHED) ---
+  // --- EXISTING LOGIC ---
   String name = "";
   String role = "";
   List<String> menuItems = [];
@@ -26,6 +29,8 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> _initLoad() async {
+    // Artificial delay for skeleton effect
+    await Future.delayed(const Duration(milliseconds: 1000));
     await loadUser();
     if (mounted) setState(() => _isLoading = false);
   }
@@ -34,9 +39,11 @@ class _DashboardState extends State<Dashboard> {
     try {
       final storedName = await storage.getName();
       final storedRole = await storage.getRole();
+
       if (storedRole == null) return;
+
       setState(() {
-        name = storedName ?? "";
+        name = storedName ?? "User";
         role = storedRole;
         menuItems = RoleHelper.getMenuForRole(role);
       });
@@ -46,72 +53,74 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> logout() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Logging out..."),
-        duration: Duration(milliseconds: 800),
-        backgroundColor: AppColors.primary,
-      ),
-    );
+    // ✅ UIUtils: Show snackbar
+    UIUtils.showProcessingSnackbar(context, message: "Logging out...");
+
     await Future.delayed(const Duration(milliseconds: 500));
     await storage.clearAll();
-    if (mounted) Navigator.pushReplacementNamed(context, "/login");
-  }
 
-  void navigate(String menu) {
-    switch (menu) {
-      case "Create User":
-        Navigator.pushNamed(context, "/createUser");
-        break;
-      case "Add Item":
-        Navigator.pushNamed(context, "/addItem");
-        break;
-      case "Stock In":
-        Navigator.pushNamed(context, "/stockIn");
-        break;
-      case "Stock Details":
-        Navigator.pushNamed(context, "/inventoryList");
-        break;
-      case "Our Customers":
-        Navigator.pushNamed(context, "/customers");
-        break;
-      case "Create Customer":
-        Navigator.pushNamed(context, "/createCustomer");
-        break;
-      case "Create Order":
-        Navigator.pushNamed(context, "/createOrder");
-        break;
-      case "Orders":
-        Navigator.pushNamed(context, "/orders");
-        break;
-      case "Bills":
-        Navigator.pushNamed(context, "/bills");
-        break;
-      case "Delivery":
-        Navigator.pushNamed(context, "/delivery");
-        break;
-      case "Payments":
-        Navigator.pushNamed(context, "/payments");
-        break;
-      case "Reports":
-        Navigator.pushNamed(context, "/endOfDayReport");
-        break;
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Hide loading
+      Navigator.pushReplacementNamed(context, "/login");
     }
   }
 
-  // --- UI HELPERS: ICONS & COLORS ---
+  void navigate(String menu) {
+    String route = "";
+    switch (menu) {
+      case "Create User":
+        route = "/createUser";
+        break;
+      case "Add Item":
+        route = "/addItem";
+        break;
+      case "Stock In":
+        route = "/stockIn";
+        break;
+      case "Stock Details":
+        route = "/inventoryList";
+        break;
+      case "Our Customers":
+        route = "/customers";
+        break;
+      case "Create Customer":
+        route = "/createCustomer";
+        break;
+      case "Create Order":
+        route = "/createOrder";
+        break;
+      case "Orders":
+        route = "/orders";
+        break;
+      case "Bills":
+        route = "/bills";
+        break;
+      case "Delivery":
+        route = "/delivery";
+        break;
+      case "Payments":
+        route = "/payments";
+        break;
+      case "Reports":
+        route = "/endOfDayReport";
+        break;
+    }
+    if (route.isNotEmpty) Navigator.pushNamed(context, route);
+  }
+
+  // --- UI HELPERS ---
   Color _getColorForMenu(String menu) {
     switch (menu) {
       case "Add Item":
         return AppColors.primary;
       case "Stock Details":
-        return const Color(0xFF03C3EC);
+        return AppColors.info;
       case "Our Customers":
-        return const Color(0xFFFFAB00);
+        return AppColors.warning;
       case "Create Order":
-        return const Color(0xFF71DD37);
+        return AppColors.success;
       case "Delivery":
-        return const Color(0xFF8592A3);
+        return AppColors.secondary;
       default:
         return AppColors.primary;
     }
@@ -161,129 +170,194 @@ class _DashboardState extends State<Dashboard> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F9),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF566a7f)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primary.withOpacity(0.15),
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : "U",
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+      extendBodyBehindAppBar: true,
+
+      // ✅ 1. CUSTOM APP BAR WITH PROFILE MENU
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AppBar(
+              backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.8),
+              elevation: 0,
+              centerTitle: true,
+              systemOverlayStyle: const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.dark,
+              ),
+              leading: Builder(
+                builder: (context) => IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.menu_rounded,
+                      color: AppColors.textHeading,
+                      size: 20,
+                    ),
+                  ),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        backgroundColor: Colors.white,
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildDrawerHeader(),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemCount: drawerList.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, indent: 20, endIndent: 20),
-                  itemBuilder: (context, index) {
-                    final item = drawerList[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 0,
-                      ),
-                      leading: Icon(
-                        _getIconForMenu(item),
-                        color: const Color(0xFF566a7f),
-                        size: 20,
-                      ),
-                      title: Text(
-                        item,
+              title: const Column(
+                children: [
+                  Text(
+                    "M-Store",
+                    style: TextStyle(
+                      color: AppColors.textHeading,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontFamily: 'PublicSans',
+                    ),
+                  ),
+                  Text(
+                    "Dashboard",
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+              actions: [
+                // ✅ PROFILE DROPDOWN MENU
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: PopupMenuButton<String>(
+                    offset: const Offset(0, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    tooltip: 'Profile',
+                    onSelected: (value) {
+                      if (value == 'logout') {
+                        logout();
+                      }
+                    },
+                    // The Visible Icon in AppBar
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColors.primary.withOpacity(0.15),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : "U",
                         style: const TextStyle(
-                          color: Color(0xFF566a7f),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        navigate(item);
-                      },
-                    );
-                  },
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(
-                  Icons.logout,
-                  color: AppColors.danger,
-                  size: 20,
-                ),
-                title: const Text(
-                  "Logout",
-                  style: TextStyle(
-                    color: AppColors.danger,
-                    fontWeight: FontWeight.w600,
+                    ),
+                    // The Dropdown Content
+                    itemBuilder: (context) => [
+                      // 1. Profile Info (Non-clickable header)
+                      PopupMenuItem<String>(
+                        enabled: false, // Prevents closing on tap
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: AppColors.primary
+                                      .withOpacity(0.1),
+                                  child: const Icon(
+                                    Icons.person,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textHeading,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      role.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 2. Divider
+                      const PopupMenuDivider(),
+                      // 3. Logout (Red)
+                      const PopupMenuItem<String>(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.logout_rounded,
+                              color: AppColors.danger,
+                              size: 20,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              "Logout",
+                              style: TextStyle(
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                onTap: logout,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+
+      drawer: _buildDrawer(drawerList),
+
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
+          ? _buildSkeletonDashboard()
           : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                ), // Tighter padding
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
-                    Text(
-                      "Welcome back, $name",
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF566a7f),
-                      ),
+                    // Grid
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 1.4,
+                          ),
+                      itemCount: dashboardList.length,
+                      itemBuilder: (context, index) {
+                        return _buildCompactCard(dashboardList[index]);
+                      },
                     ),
-                    const SizedBox(height: 20),
-
-                    // The Grid
-                    Expanded(
-                      child: GridView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12, // Tighter spacing
-                              mainAxisSpacing: 12,
-                              childAspectRatio:
-                                  1.6, // Makes cards shorter (Rectangular)
-                            ),
-                        itemCount: dashboardList.length,
-                        itemBuilder: (context, index) {
-                          return _buildCompactCard(dashboardList[index]);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 10),
                   ],
                 ),
               ),
@@ -291,7 +365,8 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // --- WIDGET: COMPACT DASHBOARD CARD ---
+  // --- WIDGETS ---
+
   Widget _buildCompactCard(String title) {
     final color = _getColorForMenu(title);
     final icon = _getIconForMenu(title);
@@ -300,48 +375,58 @@ class _DashboardState extends State<Dashboard> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => navigate(title),
-        borderRadius: BorderRadius.circular(16),
-        splashColor: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF9E9E9E).withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.grey.withOpacity(0.08),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            // ✅ FIX: Space reduction logic
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center, // Center vertically
             children: [
-              // 1. Icon on the Left (Smaller, Cleaner)
               Container(
-                height: 40,
-                width: 40,
+                height: 42,
+                width: 42,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(width: 12),
-
-              // 2. Text on the Right
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF566a7f),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    height: 1.1,
+              const SizedBox(height: 12), // ✅ Reduced space
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis, // Prevent overflow
+                      style: const TextStyle(
+                        color: AppColors.textHeading,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        height: 1.1, // Tighter line height
+                      ),
+                    ),
                   ),
-                ),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: Colors.grey[300],
+                  ),
+                ],
               ),
             ],
           ),
@@ -350,43 +435,148 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // --- WIDGET: DRAWER HEADER ---
-  Widget _buildDrawerHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
-      color: Colors.white,
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: const Icon(Icons.person, color: AppColors.primary, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Color(0xFF566a7f),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+  Widget _buildDrawer(List<String> drawerList) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    child: const Icon(
+                      Icons.person,
+                      color: AppColors.primary,
+                      size: 26,
+                    ),
                   ),
-                ),
-                Text(
-                  role.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Welcome back,",
+                        style: TextStyle(color: Colors.grey, fontSize: 10),
+                      ),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: AppColors.textHeading,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          role.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                itemCount: drawerList.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  final item = drawerList[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                    leading: Icon(
+                      _getIconForMenu(item),
+                      color: AppColors.textMuted,
+                      size: 20,
+                    ),
+                    title: Text(
+                      item,
+                      style: const TextStyle(
+                        color: AppColors.textHeading,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      navigate(item);
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                tileColor: AppColors.danger.withOpacity(0.1),
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.danger,
+                  size: 20,
+                ),
+                title: const Text(
+                  "Logout",
+                  style: TextStyle(
+                    color: AppColors.danger,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: logout,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonDashboard() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Expanded(
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.4,
+                ),
+                itemCount: 6,
+                itemBuilder: (_, __) =>
+                    const SkeletalLoader(height: 100, borderRadius: 20),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

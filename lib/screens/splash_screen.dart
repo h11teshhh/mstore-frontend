@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'dart:async'; // For timer
 import '../storage/token_storage.dart';
-import '../auth/login_page.dart'; // Ensure correct path
-import 'dashboard.dart'; // Ensure correct path
-import '../utils/app_constants.dart'; // For AppColors
+import '../auth/login_page.dart';
+import 'dashboard.dart';
+import '../utils/app_constants.dart';
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -54,7 +57,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _initializeApp() async {
     // Add a minimum delay so the animation can play (UI Polish)
-    // This prevents the screen from flickering away instantly if the phone is fast.
     final minDelay = Future.delayed(const Duration(milliseconds: 2000));
 
     // Check Session Logic
@@ -93,6 +95,9 @@ class _SplashScreenState extends State<SplashScreen>
         );
       }
     } catch (e) {
+      // ✅ Using UIUtils for fallback error
+      UIUtils.showErrorToast("Session check failed. Redirecting to login.");
+
       // Fallback in case of error
       Navigator.pushReplacement(
         context,
@@ -105,6 +110,19 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR (Minimal for Splash)
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        // ✅ Status Bar Visibility: Dark Icons for Light Background
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        // No title/actions needed for splash, but AppBar is here for SystemUI control
+      ),
+
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -130,8 +148,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   child: const Center(
                     child: Icon(
-                      Icons
-                          .space_dashboard_rounded, // Replace with your App Logo Image if you have one
+                      Icons.space_dashboard_rounded,
                       size: 50,
                       color: AppColors.primary,
                     ),
@@ -171,16 +188,12 @@ class _SplashScreenState extends State<SplashScreen>
 
             const SizedBox(height: 60),
 
-            // Loading Indicator (Subtle)
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppColors.primary.withOpacity(0.7),
-                ),
-              ),
+            // ✅ 2. SKELETON LOADER (Replaces CircularProgressIndicator)
+            // A subtle pulse bar to indicate loading
+            const SizedBox(
+              width: 120,
+              height: 6,
+              child: SkeletalLoader(width: 120, height: 6, borderRadius: 3),
             ),
           ],
         ),

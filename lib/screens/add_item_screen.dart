@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For Status Bar Control
 import 'package:dio/dio.dart';
+import 'dart:async'; // For UI delay
+
 import '../api/api_service.dart';
-import '../utils/app_constants.dart'; // Ensuring we use standard colors
+import '../utils/app_constants.dart';
+import '../utils/skeletal_loader.dart'; // ✅ Imported Skeleton
 
 class AddItemScreen extends StatefulWidget {
   const AddItemScreen({super.key});
@@ -18,6 +22,18 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController priceController = TextEditingController();
   bool loading = false;
 
+  // UI State for Skeleton
+  bool _isInitLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate a quick UI prep to show off the skeleton effect
+    Timer(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _isInitLoading = false);
+    });
+  }
+
   @override
   void dispose() {
     itemController.dispose();
@@ -28,7 +44,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
   Future<void> addItem() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // UI Logic: Close keyboard to prevent layout issues
     FocusScope.of(context).unfocus();
     setState(() => loading = true);
 
@@ -147,171 +162,241 @@ class _AddItemScreenState extends State<AddItemScreen> {
   // --- UI BUILD ---
   @override
   Widget build(BuildContext context) {
-    // 1. Get Device Dimensions
     final size = MediaQuery.of(context).size;
-
-    // 2. Calculate "20% upside from center"
-    // Center is 50%. Moving 20% up puts us at 30% from the top.
-    final double topOffset =
-        size.height * 0.15; // Adjusted for visual balance + Appbar
+    final double topOffset = size.height * 0.15;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // Allows content to flow behind if needed
       appBar: AppBar(
+        backgroundColor: const Color(
+          0xFFF5F5F9,
+        ).withOpacity(0.9), // Glassy effect
+        elevation: 0,
+        centerTitle: true,
+        // ✅ Status Bar Control: Ensures icons are dark and readable
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light, // For iOS
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: AppColors.textHeading,
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
         title: const Text(
-          "New Item",
+          "New Inventory Item",
           style: TextStyle(
             color: Color(0xFF566a7f),
             fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
           ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF566a7f)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              icon: const Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.textMuted,
+              ),
+              onPressed: () {
+                // Info action
+              },
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
-        // Allow scrolling so keyboard doesn't hide fields
         child: Column(
           children: [
-            // Responsive Top Spacer
-            SizedBox(height: topOffset),
+            SizedBox(
+              height: topOffset + kToolbarHeight,
+            ), // Offset + AppBar height
 
-            // Center Content Horizontally
             Center(
               child: ConstrainedBox(
-                // Responsive Width Limit (keeps it nice on tablets)
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      // Header Icon
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add_shopping_cart_rounded,
-                          size: 40,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // The Form Card
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel("Item Details"),
-                              const SizedBox(height: 16),
-
-                              // Item Name Input
-                              TextFormField(
-                                controller: itemController,
-                                decoration: _inputDecoration(
-                                  "Item Name",
-                                  Icons.inventory_2_outlined,
-                                ),
-                                validator: (value) =>
-                                    (value == null || value.isEmpty)
-                                    ? "Item name is required"
-                                    : null,
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Price Input
-                              TextFormField(
-                                controller: priceController,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: _inputDecoration(
-                                  "Price (₹)",
-                                  Icons.currency_rupee_rounded,
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return "Price is required";
-                                  }
-                                  if (double.tryParse(value) == null) {
-                                    return "Enter valid number";
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 30),
-
-                              // Submit Button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: loading ? null : addItem,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    disabledBackgroundColor: AppColors.primary
-                                        .withOpacity(0.6),
-                                    elevation: 4,
-                                    shadowColor: AppColors.primary.withOpacity(
-                                      0.3,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: loading
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2.5,
-                                          ),
-                                        )
-                                      : const Text(
-                                          "ADD TO INVENTORY",
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.0,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Bottom padding to ensure scrollability on small phones
-                      const SizedBox(height: 50),
-                    ],
-                  ),
+                  child: _isInitLoading
+                      ? _buildSkeletonLoader() // ✅ Visual Skeleton State
+                      : _buildActualForm(), // ✅ Actual Form
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // ✅ The Real Form (Extracted for cleanliness)
+  Widget _buildActualForm() {
+    return Column(
+      children: [
+        // Header Icon
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.add_shopping_cart_rounded,
+            size: 40,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // The Form Card
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildLabel("Item Details"),
+                const SizedBox(height: 16),
+
+                // Item Name Input
+                TextFormField(
+                  controller: itemController,
+                  decoration: _inputDecoration(
+                    "Item Name",
+                    Icons.inventory_2_outlined,
+                  ),
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? "Item name is required"
+                      : null,
+                ),
+                const SizedBox(height: 20),
+
+                // Price Input
+                TextFormField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: _inputDecoration(
+                    "Price (₹)",
+                    Icons.currency_rupee_rounded,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Price is required";
+                    }
+                    if (double.tryParse(value) == null) {
+                      return "Enter valid number";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 30),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: loading ? null : addItem,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor: AppColors.primary.withOpacity(
+                        0.6,
+                      ),
+                      elevation: 4,
+                      shadowColor: AppColors.primary.withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: loading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            "ADD TO INVENTORY",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 50),
+      ],
+    );
+  }
+
+  // ✅ Skeleton Loader Implementation
+  Widget _buildSkeletonLoader() {
+    return Column(
+      children: [
+        const SkeletalLoader(width: 70, height: 70, borderRadius: 35),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              SkeletalLoader(width: 100, height: 14),
+              SizedBox(height: 20),
+              SkeletalLoader(width: double.infinity, height: 55),
+              SizedBox(height: 20),
+              SkeletalLoader(width: double.infinity, height: 55),
+              SizedBox(height: 30),
+              SkeletalLoader(width: double.infinity, height: 50),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

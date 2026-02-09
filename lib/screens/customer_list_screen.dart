@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import 'dart:async'; // For search debounce
+
 import '../api/api_service.dart';
 import '../storage/token_storage.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart'; // Using your UI Utils
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -53,7 +56,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     setState(() => loading = true);
 
     try {
-      // Optional: Artificial delay to show off skeleton (Remove in production)
+      // Optional: Artificial delay to show off skeleton
       // await Future.delayed(const Duration(milliseconds: 1000));
 
       final response = await api.getCustomers();
@@ -72,6 +75,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     }
   }
@@ -96,7 +100,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   void onAddCustomerPressed() {
-    // Only SUPERADMIN or ADMIN (Adjust logic as per your need)
     if (role == "SUPERADMIN" || role == "ADMIN") {
       Navigator.pushNamed(
         context,
@@ -111,31 +114,106 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    // Positioning: 8% from top to be "20-25% upside from center"
+    // Positioning: Adjusted to account for AppBar
     final double topOffset = size.height * 0.08;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Customers", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.person_add_alt_1_rounded,
-              color: AppColors.primary,
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
             ),
-            onPressed: onAddCustomerPressed,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Customers",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          // Refresh Button
+          IconButton(
+            onPressed: () {
+              UIUtils.showProcessingSnackbar(
+                context,
+                message: "Refreshing list...",
+              );
+              fetchCustomers();
+            },
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+          ),
+          // Add Customer Button (Sneat Style)
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: onAddCustomerPressed,
+              tooltip: "Add Customer",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary, // Primary color for main action
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.person_add_alt_1_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+
       body: Column(
         children: [
-          SizedBox(height: topOffset * 0.5), // Responsive Top Spacer
-          // 1. SEARCH CONTAINER (Placed High Up)
+          // Spacer for AppBar + Offset
+          SizedBox(
+            height:
+                kToolbarHeight +
+                MediaQuery.of(context).padding.top +
+                (topOffset * 0.5),
+          ),
+
+          // 1. SEARCH CONTAINER
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.cardPadding,
@@ -190,7 +268,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           // 2. LIST CONTENT
           Expanded(
             child: loading
-                ? _buildSkeletonList() // <--- SKELETON LOADER
+                ? _buildSkeletonList() // ✅ SKELETON LOADER
                 : RefreshIndicator(
                     onRefresh: fetchCustomers,
                     color: AppColors.primary,
@@ -230,8 +308,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.05),
@@ -243,7 +321,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             Navigator.pushNamed(
               context,
@@ -256,9 +334,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
             child: Row(
               children: [
                 // Avatar
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
                   child: Text(
                     name.toString().substring(0, 1).toUpperCase(),
                     style: const TextStyle(
@@ -280,7 +363,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: AppColors.textHeading,
+                          color: Color(0xFF566a7f),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -380,7 +463,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  // --- SKELETON LOADER ---
+  // ✅ SKELETON LOADER
   Widget _buildSkeletonList() {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
@@ -398,29 +481,25 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                shape: BoxShape.circle,
-              ),
-            ),
+            // Skeleton Avatar
+            const SkeletalLoader(width: 48, height: 48, borderRadius: 24),
             const SizedBox(width: 16),
+            // Skeleton Text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(width: 120, height: 14, color: Colors.grey[200]),
-                  const SizedBox(height: 8),
-                  Container(width: 80, height: 10, color: Colors.grey[100]),
-                  const SizedBox(height: 6),
-                  Container(width: 60, height: 10, color: Colors.grey[100]),
+                children: const [
+                  SkeletalLoader(width: 120, height: 14),
+                  SizedBox(height: 8),
+                  SkeletalLoader(width: 80, height: 10),
+                  SizedBox(height: 6),
+                  SkeletalLoader(width: 60, height: 10),
                 ],
               ),
             ),
-            Container(width: 60, height: 20, color: Colors.grey[200]),
+            // Skeleton Due Amount
+            const SkeletalLoader(width: 60, height: 20),
           ],
         ),
       ),

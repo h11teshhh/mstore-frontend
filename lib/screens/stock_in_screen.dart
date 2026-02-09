@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ For Status Bar Control
 import 'package:dio/dio.dart';
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart'; // Ensure standard UI utils
-import '../utils/skeletal_loader.dart'; // Reusing your skeleton code
+import '../utils/ui_utils.dart'; // ✅ Using UIUtils
+import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
 
 class StockInScreen extends StatefulWidget {
   const StockInScreen({super.key});
@@ -52,6 +53,7 @@ class _StockInScreenState extends State<StockInScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => fetching = false);
+      // ✅ Using UIUtils
       UIUtils.showErrorToast("Failed to load inventory items");
     }
   }
@@ -63,8 +65,10 @@ class _StockInScreenState extends State<StockInScreen> {
       return;
     }
 
-    // Hide Keyboard
     FocusScope.of(context).unfocus();
+
+    // ✅ UIUtils: Notify user processing started
+    UIUtils.showProcessingSnackbar(context, message: "Updating stock...");
     setState(() => loading = true);
 
     try {
@@ -75,6 +79,9 @@ class _StockInScreenState extends State<StockInScreen> {
 
       if (!mounted) return;
 
+      // Hide the processing snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
       _showSuccessDialog(
         response.data["message"] ?? "Stock added successfully",
       );
@@ -84,14 +91,17 @@ class _StockInScreenState extends State<StockInScreen> {
       setState(() {
         selectedItemId = null;
       });
-      // Refresh list to update stock counts in dropdown
+      // Refresh list
       fetchItems();
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Hide loading
+
       String msg = "Failed to add stock";
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
+      // ✅ Using UIUtils
       UIUtils.showErrorToast(msg);
     } finally {
       if (mounted) setState(() => loading = false);
@@ -129,7 +139,7 @@ class _StockInScreenState extends State<StockInScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textHeading,
+                  color: Color(0xFF566a7f),
                 ),
               ),
               const SizedBox(height: 8),
@@ -167,29 +177,99 @@ class _StockInScreenState extends State<StockInScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-
     // Position: 10% from top puts the card in the upper-middle "sweet spot"
     final double topOffset = size.height * 0.10;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
+      // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        title: const Text("Add Stock", style: AppTypography.heading),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textHeading),
+        centerTitle: true,
+        // ✅ Status Bar Visibility
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: Color(0xFF566a7f),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: const Text(
+          "Add Stock",
+          style: TextStyle(
+            color: Color(0xFF566a7f),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontFamily: 'PublicSans',
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          // Refresh Button
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: IconButton(
+              onPressed: fetchItems,
+              tooltip: "Refresh Items",
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
+
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: topOffset), // Responsive Top Spacer
+            // Spacer for AppBar + TopOffset
+            SizedBox(
+              height:
+                  kToolbarHeight +
+                  MediaQuery.of(context).padding.top +
+                  topOffset,
+            ),
 
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: fetching
-                    ? _buildSkeletonForm() // Skeleton Loading State
+                    ? _buildSkeletonForm() // ✅ Uses SkeletalLoader
                     : Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
@@ -400,10 +480,10 @@ class _StockInScreenState extends State<StockInScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
-          // Fake Icon
+          // Skeleton Icon
           const SkeletalLoader(width: 70, height: 70, borderRadius: 35),
           const SizedBox(height: 24),
-          // Fake Card
+          // Skeleton Form Card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
