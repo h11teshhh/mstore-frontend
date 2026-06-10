@@ -28,7 +28,7 @@ import 'screens/customer_detail_screen.dart'; // Renamed from customer_detail.da
 import 'screens/create_order_screen.dart'; // Renamed from create_order.dart
 import 'screens/orders_screen.dart';
 import 'screens/payments_screen.dart';
-import 'screens/billsscreen.dart';
+import 'screens/BillsScreen.dart';
 
 // Screens - LOGISTICS
 import 'screens/delivery_screen.dart';
