@@ -298,6 +298,36 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   // --- WIDGETS ---
 
+  Future<void> _deleteCustomer(String customerId, String customerName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Delete Customer",
+            style: TextStyle(color: AppColors.textHeading, fontWeight: FontWeight.bold)),
+        content: Text("Are you sure you want to delete \"$customerName\"?\n\nThis action cannot be undone.",
+            style: const TextStyle(color: AppColors.textDark)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await api.deleteCustomer(customerId);
+      UIUtils.showSuccessToast("Customer deleted successfully");
+      fetchCustomers();
+    } catch (_) {}
+  }
+
   Widget _buildCustomerCard(dynamic customer) {
     final name = customer["name"] ?? "Unknown";
     final mobile = customer["mobile"] ?? "N/A";
@@ -431,6 +461,21 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   color: AppColors.textMuted,
                   size: 20,
                 ),
+                if (role == "SUPERADMIN") ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _deleteCustomer(id.toString(), name),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          color: AppColors.danger, size: 18),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui'; // For Glassmorphism
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,10 +23,40 @@ class _DashboardState extends State<Dashboard> {
   final TokenStorage storage = TokenStorage();
   bool _isLoading = true;
 
+  // IST midnight auto-logout timer
+  Timer? _midnightTimer;
+
   @override
   void initState() {
     super.initState();
     _initLoad();
+    _scheduleMidnightLogout();
+  }
+
+  @override
+  void dispose() {
+    _midnightTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Schedules a timer to fire exactly at 12:00 AM IST (UTC+5:30).
+  void _scheduleMidnightLogout() {
+    _midnightTimer?.cancel();
+    const istOffsetMinutes = 330; // IST = UTC+5:30
+    final nowUtc = DateTime.now().toUtc();
+    final nowIst = nowUtc.add(const Duration(minutes: istOffsetMinutes));
+    final nextMidnightIst = DateTime(
+      nowIst.year, nowIst.month, nowIst.day + 1, 0, 0, 0,
+    );
+    final durationUntilMidnight = nextMidnightIst.difference(nowIst);
+    _midnightTimer = Timer(durationUntilMidnight, _onSessionExpired);
+  }
+
+  Future<void> _onSessionExpired() async {
+    await storage.clearAll();
+    if (!mounted) return;
+    UIUtils.showErrorToast("Session expired. Please login again.");
+    Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
   }
 
   Future<void> _initLoad() async {
@@ -70,6 +101,9 @@ class _DashboardState extends State<Dashboard> {
     switch (menu) {
       case "Create User":
         route = "/createUser";
+        break;
+      case "Manage Users":
+        route = "/manageUsers";
         break;
       case "Add Item":
         route = "/addItem";
@@ -144,6 +178,8 @@ class _DashboardState extends State<Dashboard> {
         return Icons.attach_money_rounded;
       case "Create User":
         return Icons.person_add_alt_1_rounded;
+      case "Manage Users":
+        return Icons.manage_accounts_rounded;
       case "Bills":
         return Icons.receipt_long_rounded;
       default:

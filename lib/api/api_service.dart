@@ -193,4 +193,57 @@ class ApiService {
   Future<Response> getEndOfDaySummary() async {
     return await _dio.get("/reports/end-of-day/summary");
   }
+
+  // -----------------------------------------------------------------------
+  // FORGOT PASSWORD FLOW
+  // -----------------------------------------------------------------------
+
+  Future<Response> forgotPasswordVerifyMaster(String masterPassword) async {
+    return await _dio.post(
+      "/auth/forgot-password/verify-master",
+      data: {"master_password": masterPassword},
+    );
+  }
+
+  Future<Response> forgotPasswordSendOtp({
+    required String mobile,
+    required String email,
+  }) async {
+    return await _dio.post(
+      "/auth/forgot-password/send-otp",
+      data: {"mobile": mobile, "email": email},
+    );
+  }
+
+  Future<Response> forgotPasswordReset({
+    required String mobile,
+    required String otp,
+    required String newPassword,
+  }) async {
+    return await _dio.post(
+      "/auth/forgot-password/reset",
+      data: {"mobile": mobile, "otp": otp, "new_password": newPassword},
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // DELETE APIS (SUPERADMIN ONLY)
+  // -----------------------------------------------------------------------
+
+  Future<Response> deleteUser(String userId) async {
+    return await _dio.delete("/users/$userId");
+  }
+
+  Future<Response> deleteCustomer(String customerId) async {
+    return await _dio.delete("/customers/$customerId");
+  }
+
+  Future<Response> deleteInventoryItem(String itemId) async {
+    return await _dio.delete("/inventory/$itemId");
+  }
+
+  // GET USERS LIST
+  Future<Response> getUsers() async {
+    return await _dio.get("/users/");
+  }
 }

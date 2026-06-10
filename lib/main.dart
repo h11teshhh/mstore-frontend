@@ -10,7 +10,8 @@ import 'screens/splash_screen.dart';
 import 'screens/dashboard.dart';
 
 // Screens - ADMIN
-import 'screens/create_user_screen.dart'; // Renamed from create_user.dart
+import 'screens/create_user_screen.dart';
+import 'screens/user_list_screen.dart'; // Renamed from create_user.dart
 import 'screens/end_of_day_report_screen.dart'; // Renamed from end_of_day_report.dart
 
 // Screens - INVENTORY
@@ -134,6 +135,7 @@ class MyApp extends StatelessWidget {
 
         // --- Admin ---
         "/createUser": (context) => const CreateUserScreen(),
+        "/manageUsers": (context) => const UserListScreen(),
         "/endOfDayReport": (context) => const EndOfDayReportScreen(),
 
         // --- Inventory ---

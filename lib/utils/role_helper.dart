@@ -4,6 +4,7 @@ class RoleHelper {
       case "SUPERADMIN":
         return [
           "Create User",
+          "Manage Users",
           "Add Item",
           "Stock In",
           "Stock Details",

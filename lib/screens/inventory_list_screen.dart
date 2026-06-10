@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'dart:async'; // For search debounce
 
 import '../api/api_service.dart';
+import '../storage/token_storage.dart';
 import '../utils/app_constants.dart';
 import '../utils/ui_utils.dart'; // ✅ Using UIUtils
 import '../utils/skeletal_loader.dart'; // ✅ Using Skeleton Loader
@@ -17,9 +18,11 @@ class InventoryListScreen extends StatefulWidget {
 
 class _InventoryListScreenState extends State<InventoryListScreen> {
   final ApiService api = ApiService();
+  final TokenStorage storage = TokenStorage();
   final TextEditingController searchController = TextEditingController();
 
   bool loading = true;
+  String role = "";
   List<dynamic> allItems = [];
   List<dynamic> filteredItems = [];
   Timer? _debounce;
@@ -27,7 +30,13 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   void initState() {
     super.initState();
+    _loadRole();
     fetchInventory();
+  }
+
+  Future<void> _loadRole() async {
+    final r = await storage.getRole();
+    if (mounted) setState(() => role = r ?? "");
   }
 
   @override
@@ -302,10 +311,41 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
 
   // --- WIDGETS ---
 
+  Future<void> _deleteItem(String itemId, String itemName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Delete Item",
+            style: TextStyle(color: AppColors.textHeading, fontWeight: FontWeight.bold)),
+        content: Text("Are you sure you want to delete \"$itemName\"?\n\nThis action cannot be undone.",
+            style: const TextStyle(color: AppColors.textDark)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await api.deleteInventoryItem(itemId);
+      UIUtils.showSuccessToast("Item deleted successfully");
+      fetchInventory();
+    } catch (_) {}
+  }
+
   Widget _buildInventoryCard(dynamic item) {
     final name = item["item_name"] ?? "Unknown";
     final price = item["price"] ?? 0;
     final stock = item["current_stock"] ?? 0;
+    final id = item["id"];
 
     // Logic for Colors
     Color statusColor = AppColors.success;
@@ -391,27 +431,47 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         ),
 
         // Trailing Stock Count
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "STOCK",
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[400],
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "STOCK",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[400],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "$stock",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: statusColor,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              "$stock",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: statusColor,
+            if (role == "SUPERADMIN") ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _deleteItem(id.toString(), name),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.delete_outline,
+                      color: AppColors.danger, size: 18),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
