@@ -200,7 +200,7 @@ class ApiService {
 
   Future<Response> forgotPasswordVerifyMaster(String masterPassword) async {
     return await _dio.post(
-      "/auth/forgot-password/verify-master",
+      "/auth/verify-master-password",
       data: {"master_password": masterPassword},
     );
   }
@@ -210,7 +210,7 @@ class ApiService {
     required String email,
   }) async {
     return await _dio.post(
-      "/auth/forgot-password/send-otp",
+      "/auth/forgot-password/initiate",
       data: {"mobile": mobile, "email": email},
     );
   }
@@ -222,7 +222,7 @@ class ApiService {
   }) async {
     return await _dio.post(
       "/auth/forgot-password/reset",
-      data: {"mobile": mobile, "otp": otp, "new_password": newPassword},
+      data: {"mobile": mobile, "otp": otp, "new_password": newPassword, "confirm_password": newPassword},
     );
   }
 
