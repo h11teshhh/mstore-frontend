@@ -39,13 +39,14 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   bool _isInitLoading = true;
 
   // The 4 Specific Roles
-  final List<String> roles = ["SUPERADMIN", "ADMIN", "DELIVERY", "CUSTOMER"];
+  final List<String> roles = ["ADMIN", "DELIVERY"];  // SUPERADMIN created only via system
 
   @override
   void initState() {
     super.initState();
     // ✅ Simulate initial data prep to show Skeleton Loader
-    Timer(const Duration(milliseconds: 800), () {
+    // No artificial delay - show form immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _isInitLoading = false);
     });
   }

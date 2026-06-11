@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../api/api_service.dart';
 import '../storage/token_storage.dart';
 import '../screens/dashboard.dart';
@@ -9,137 +10,128 @@ import '../utils/ui_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
+  @override State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with TickerProviderStateMixin {
-  // ── Login controllers ──────────────────────────────────────────────────
-  final TextEditingController mobileController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+  // ── Controllers ─────────────────────────────────────────────────────────
+  final _mobileCtrl  = TextEditingController();
+  final _passCtrl    = TextEditingController();
+  final _masterCtrl  = TextEditingController();
+  final _fpMobileCtrl= TextEditingController();
+  final _fpEmailCtrl = TextEditingController();
+  final _otpCtrl     = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _confPassCtrl= TextEditingController();
 
-  // ── Forgot Password controllers ─────────────────────────────────────────
-  final TextEditingController masterPasswordController = TextEditingController();
-  final TextEditingController fpMobileController     = TextEditingController();
-  final TextEditingController fpEmailController      = TextEditingController();
-  final TextEditingController otpController          = TextEditingController();
-  final TextEditingController newPasswordController  = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final _api     = ApiService();
+  final _storage = TokenStorage();
 
-  final ApiService api     = ApiService();
-  final TokenStorage storage = TokenStorage();
-
-  // ── Animation controllers ───────────────────────────────────────────────
-  late AnimationController _fadeController;
-  late Animation<double>   _fadeAnimation;
-  late AnimationController _flipController;
-  late Animation<double>   _flipAnimation;
+  // ── Animations ──────────────────────────────────────────────────────────
+  late AnimationController _fadeCtrl;
+  late Animation<double>   _fadeAnim;
+  late AnimationController _flipCtrl;
+  late Animation<double>   _flipAnim;
 
   // ── State ────────────────────────────────────────────────────────────────
-  bool _showForgotPassword = false;   // which face of the card
-  bool _isFlipping         = false;   // guard during animation
-  bool _loginLoading       = false;
-  bool _fpLoading          = false;
-  bool _obscurePassword    = true;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
-  bool _obscureMaster      = true;
+  bool _showFP      = false;
+  bool _isFlipping  = false;
+  bool _loginLoading= false;
+  bool _fpLoading   = false;
+  bool _obscurePass = true;
+  bool _obscureMaster= true;
+  bool _obscureNew  = true;
+  bool _obscureConf = true;
+  int  _fpStep      = 1;        // 1=master, 2=user id, 3=OTP+reset, 4=success
+  String _fpMobile  = "";
 
-  // Forgot-password step: 1, 2, 3 or 4 (success)
-  int  _fpStep = 1;
-
-  // Store mobile across FP steps
-  String _fpVerifiedMobile = "";
+  // Client-side validation state (instant feedback)
+  String? _emailError;
+  String? _mobileError;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
-    _fadeAnimation = CurvedAnimation(
-        parent: _fadeController, curve: Curves.easeOut);
-    _fadeController.forward();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeCtrl.forward();
 
-    _flipController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _flipController, curve: Curves.easeInOut));
+    _flipCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 550));
+    _flipAnim = Tween<double>(begin: 0, end: 1)
+        .animate(CurvedAnimation(parent: _flipCtrl, curve: Curves.easeInOut));
   }
 
   @override
   void dispose() {
-    mobileController.dispose();
-    passwordController.dispose();
-    masterPasswordController.dispose();
-    fpMobileController.dispose();
-    fpEmailController.dispose();
-    otpController.dispose();
-    newPasswordController.dispose();
-    confirmPasswordController.dispose();
-    _fadeController.dispose();
-    _flipController.dispose();
+    for (final c in [_mobileCtrl, _passCtrl, _masterCtrl, _fpMobileCtrl,
+        _fpEmailCtrl, _otpCtrl, _newPassCtrl, _confPassCtrl]) c.dispose();
+    _fadeCtrl.dispose(); _flipCtrl.dispose();
     super.dispose();
   }
 
-  // ── Flip helpers ─────────────────────────────────────────────────────────
-  void _flipToForgotPassword() async {
+  // ── Flip ─────────────────────────────────────────────────────────────────
+  Future<void> _flipToFP() async {
     if (_isFlipping) return;
-    setState(() => _isFlipping = true);
-    await _flipController.forward();
-    setState(() {
-      _showForgotPassword = true;
-      _fpStep = 1;
-      _isFlipping = false;
+    _isFlipping = true;
+    await _flipCtrl.forward();
+    if (mounted) setState(() { _showFP = true; _fpStep = 1; _isFlipping = false; });
+  }
+
+  Future<void> _flipToLogin() async {
+    if (_isFlipping) return;
+    _isFlipping = true;
+    await _flipCtrl.reverse();
+    if (mounted) setState(() {
+      _showFP = false; _isFlipping = false;
+      _fpStep = 1; _emailError = null; _mobileError = null;
+      for (final c in [_masterCtrl, _fpMobileCtrl, _fpEmailCtrl,
+          _otpCtrl, _newPassCtrl, _confPassCtrl]) c.clear();
     });
   }
 
-  void _flipToLogin() async {
-    if (_isFlipping) return;
-    setState(() => _isFlipping = true);
-    await _flipController.reverse();
-    setState(() {
-      _showForgotPassword = false;
-      _isFlipping = false;
-      // Reset FP fields
-      masterPasswordController.clear();
-      fpMobileController.clear();
-      fpEmailController.clear();
-      otpController.clear();
-      newPasswordController.clear();
-      confirmPasswordController.clear();
-    });
+  // ── Client-side validators (instant — no API) ────────────────────────────
+  bool _validateEmail(String email) {
+    final re = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (email.isEmpty) { setState(() => _emailError = "Email is required"); return false; }
+    if (!re.hasMatch(email)) { setState(() => _emailError = "Enter a valid email address"); return false; }
+    setState(() => _emailError = null);
+    return true;
   }
 
-  // ── Login ────────────────────────────────────────────────────────────────
-  Future<void> handleLogin() async {
-    if (mobileController.text.trim().isEmpty ||
-        passwordController.text.trim().isEmpty) {
-      UIUtils.showErrorToast("Please enter both Mobile Number and Password");
+  bool _validateMobile(String mobile) {
+    if (mobile.isEmpty) { setState(() => _mobileError = "Mobile number is required"); return false; }
+    if (mobile.length != 10 || !RegExp(r'^\d{10}$').hasMatch(mobile)) {
+      setState(() => _mobileError = "Enter a valid 10-digit mobile number");
+      return false;
+    }
+    setState(() => _mobileError = null);
+    return true;
+  }
+
+  // ── LOGIN ────────────────────────────────────────────────────────────────
+  Future<void> _handleLogin() async {
+    if (_mobileCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) {
+      UIUtils.showErrorToast("Please enter mobile number and password");
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() => _loginLoading = true);
-    UIUtils.showProcessingSnackbar(context, message: "Verifying credentials...");
     try {
-      final response = await api.login(
-          mobileController.text.trim(), passwordController.text.trim());
-      if (response.data != null) {
-        final token = response.data["access_token"];
-        final name  = response.data["name"];
-        final role  = response.data["role"];
+      final res = await _api.login(_mobileCtrl.text.trim(), _passCtrl.text.trim());
+      if (res.data != null) {
+        final token = res.data["access_token"];
         if (token != null) {
-          await storage.saveLoginData(
-              token: token, name: name ?? "User", role: role ?? "Guest");
-          UIUtils.showSuccessToast("Welcome back, $name!");
-          if (mounted) {
-            Navigator.pushAndRemoveUntil(context,
-                MaterialPageRoute(builder: (_) => const Dashboard()),
-                (route) => false);
-          }
-        } else {
-          throw Exception("Login failed: No token received");
+          await _storage.saveLoginData(
+              token: token,
+              name: res.data["name"] ?? "User",
+              role: res.data["role"] ?? "Guest");
+          UIUtils.showSuccessToast("Welcome, ${res.data["name"] ?? "User"}!");
+          if (mounted) Navigator.pushAndRemoveUntil(context,
+              MaterialPageRoute(builder: (_) => const Dashboard()), (_) => false);
         }
       }
     } catch (_) {
@@ -148,659 +140,404 @@ class _LoginPageState extends State<LoginPage>
     }
   }
 
-  // ── Forgot Password Steps ────────────────────────────────────────────────
-
-  // STEP 1: Verify master password
-  Future<void> _handleVerifyMaster() async {
-    final mp = masterPasswordController.text.trim();
-    if (mp.isEmpty) {
-      UIUtils.showErrorToast("Please enter the master password");
-      return;
-    }
+  // ── FP STEP 1 — Master password ──────────────────────────────────────────
+  Future<void> _handleMaster() async {
+    final mp = _masterCtrl.text.trim();
+    if (mp.isEmpty) { UIUtils.showErrorToast("Please enter the master password"); return; }
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
     try {
-      await api.forgotPasswordVerifyMaster(mp);
+      await _api.forgotPasswordVerifyMaster(mp);
       setState(() => _fpStep = 2);
     } catch (_) {
-    } finally {
-      if (mounted) setState(() => _fpLoading = false);
-    }
+    } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
-  // STEP 2: Verify mobile + email, send OTP
+  // ── FP STEP 2 — Validate + send OTP ─────────────────────────────────────
   Future<void> _handleSendOtp() async {
-    final mobile = fpMobileController.text.trim();
-    final email  = fpEmailController.text.trim();
-    if (mobile.isEmpty || email.isEmpty) {
-      UIUtils.showErrorToast("Please enter both Mobile Number and Email");
-      return;
-    }
-    if (mobile.length != 10) {
-      UIUtils.showErrorToast("Enter a valid 10-digit mobile number");
-      return;
-    }
+    final mobile = _fpMobileCtrl.text.trim();
+    final email  = _fpEmailCtrl.text.trim();
+    // Client-side validation FIRST — instant, no API
+    if (!_validateMobile(mobile) | !_validateEmail(email)) return;
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
-    UIUtils.showProcessingSnackbar(context, message: "Sending OTP...");
+    UIUtils.showProcessingSnackbar(context, message: "Sending verification code…");
     try {
-      await api.forgotPasswordSendOtp(mobile: mobile, email: email);
-      _fpVerifiedMobile = mobile;
-      UIUtils.showSuccessToast("OTP sent to your email");
+      await _api.forgotPasswordSendOtp(mobile: mobile, email: email);
+      _fpMobile = mobile;
+      UIUtils.showSuccessToast("Code sent! Check your inbox.");
       setState(() => _fpStep = 3);
     } catch (_) {
-    } finally {
-      if (mounted) setState(() => _fpLoading = false);
-    }
+    } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
-  // STEP 3: Verify OTP + reset password
-  Future<void> _handleResetPassword() async {
-    final otp      = otpController.text.trim();
-    final newPass  = newPasswordController.text.trim();
-    final confPass = confirmPasswordController.text.trim();
-    if (otp.isEmpty || newPass.isEmpty || confPass.isEmpty) {
-      UIUtils.showErrorToast("Please fill all fields");
-      return;
-    }
-    if (newPass != confPass) {
-      UIUtils.showErrorToast("Passwords do not match");
-      return;
-    }
-    if (newPass.length < 6) {
-      UIUtils.showErrorToast("Password must be at least 6 characters");
-      return;
-    }
+  // ── FP STEP 3 — Verify OTP + reset ──────────────────────────────────────
+  Future<void> _handleReset() async {
+    final otp     = _otpCtrl.text.trim();
+    final newPass = _newPassCtrl.text.trim();
+    final confPass= _confPassCtrl.text.trim();
+    if (otp.isEmpty)   { UIUtils.showErrorToast("Please enter the verification code"); return; }
+    if (otp.length < 4){ UIUtils.showErrorToast("Verification code is too short"); return; }
+    if (newPass.isEmpty){ UIUtils.showErrorToast("Please enter a new password"); return; }
+    if (newPass.length < 6){ UIUtils.showErrorToast("Password must be at least 6 characters"); return; }
+    if (newPass != confPass){ UIUtils.showErrorToast("Passwords do not match"); return; }
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
-    UIUtils.showProcessingSnackbar(context, message: "Resetting password...");
     try {
-      await api.forgotPasswordReset(
-          mobile: _fpVerifiedMobile, otp: otp, newPassword: newPass);
-      setState(() => _fpStep = 4); // success
+      await _api.forgotPasswordReset(mobile: _fpMobile, otp: otp, newPassword: newPass);
+      setState(() => _fpStep = 4);
     } catch (_) {
-    } finally {
-      if (mounted) setState(() => _fpLoading = false);
-    }
+    } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
-  // ── Shared input decoration ──────────────────────────────────────────────
-  InputDecoration _inputDecoration({
+  // ── Input Decoration ─────────────────────────────────────────────────────
+  InputDecoration _dec({
     required String hint,
     required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: AppColors.textMuted),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.5),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-          borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
-      prefixIcon: Icon(icon, color: AppColors.textMuted),
-      suffixIcon: suffixIcon,
-    );
-  }
+    Widget? suffix,
+    String? errorText,
+  }) => InputDecoration(
+    hintText: hint,
+    hintStyle: AppTypography.caption.copyWith(color: AppColors.textMuted),
+    errorText: errorText,
+    errorStyle: const TextStyle(fontSize: 11),
+    filled: true,
+    fillColor: AppColors.surface,
+    border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        borderSide: const BorderSide(color: AppColors.borderColor, width: 1)),
+    focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+    errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        borderSide: const BorderSide(color: AppColors.danger, width: 1)),
+    focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        borderSide: const BorderSide(color: AppColors.danger, width: 1.5)),
+    prefixIcon: Icon(icon, color: AppColors.textMuted, size: 20),
+    suffixIcon: suffix,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  );
 
-  // ── Progress Indicator (3 steps) ─────────────────────────────────────────
-  Widget _buildProgressIndicator() {
-    final steps = ["Master\nPassword", "User\nVerification", "OTP &\nReset"];
-    final successStep = _fpStep == 4;
-    final activeStep  = successStep ? 3 : _fpStep;
+  Widget _primaryBtn(String label, VoidCallback? onTap) => SizedBox(
+    width: double.infinity, height: 48,
+    child: ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: AppColors.primary.withOpacity(0.35),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius)),
+      ),
+      child: _fpLoading || _loginLoading
+          ? const SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : Text(label, style: AppTypography.button),
+    ),
+  );
 
+  // ── Progress bar ─────────────────────────────────────────────────────────
+  Widget _progress() {
+    const labels = ["Master\nKey", "Verify\nUser", "Reset\nPassword"];
+    final active  = _fpStep == 4 ? 3 : _fpStep;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(steps.length * 2 - 1, (i) {
+      children: List.generate(labels.length * 2 - 1, (i) {
         if (i.isOdd) {
-          final stepNum = (i ~/ 2) + 1;
-          final done = activeStep > stepNum;
-          return Expanded(
-            child: Container(
-              height: 2,
-              color: done ? AppColors.primary : AppColors.borderColor,
-            ),
-          );
+          final done = active > (i ~/ 2) + 1;
+          return Expanded(child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 2,
+            color: done ? AppColors.primary : AppColors.borderColor,
+          ));
         }
-        final stepIdx = i ~/ 2;
-        final stepNum = stepIdx + 1;
-        final isDone   = activeStep > stepNum || successStep;
-        final isActive = activeStep == stepNum && !successStep;
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isDone
-                    ? AppColors.success
-                    : isActive
-                        ? AppColors.primary
-                        : AppColors.borderColor,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: isDone
-                    ? const Icon(Icons.check, color: Colors.white, size: 16)
-                    : Text("$stepNum",
-                        style: TextStyle(
-                            color: isActive ? Colors.white : AppColors.textMuted,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold)),
-              ),
+        final n = i ~/ 2 + 1;
+        final done   = active > n || _fpStep == 4;
+        final current= active == n && _fpStep != 4;
+        return Column(mainAxisSize: MainAxisSize.min, children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 28, height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done ? AppColors.primary : current ? AppColors.primary : AppColors.borderColor,
             ),
-            const SizedBox(height: 4),
-            Text(steps[stepIdx],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 9,
-                    color: isActive ? AppColors.primary : AppColors.textMuted,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal)),
-          ],
-        );
+            child: Center(child: done
+                ? const Icon(Icons.check, color: Colors.white, size: 14)
+                : Text("$n", style: TextStyle(
+                    color: current ? Colors.white : AppColors.textMuted,
+                    fontSize: 12, fontWeight: FontWeight.bold))),
+          ),
+          const SizedBox(height: 3),
+          Text(labels[n-1], textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 9, fontWeight: current ? FontWeight.w700 : FontWeight.w400,
+                  color: current ? AppColors.primary : AppColors.textMuted)),
+        ]);
       }),
     );
   }
 
-  // ── Build step content ────────────────────────────────────────────────────
-  Widget _buildFpStep1() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Master Password", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: masterPasswordController,
-          obscureText: _obscureMaster,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-            hint: "Enter master password",
-            icon: Icons.admin_panel_settings_outlined,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureMaster ? Icons.visibility_off : Icons.visibility,
-                color: AppColors.textMuted,
-              ),
-              onPressed: () =>
-                  setState(() => _obscureMaster = !_obscureMaster),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _fpLoading ? null : _handleVerifyMaster,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius))),
-            child: _fpLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Text("VERIFY",
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── FP Step widgets ───────────────────────────────────────────────────────
+  Widget _step1() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Text("Admin Key", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _masterCtrl,
+      obscureText: _obscureMaster,
+      decoration: _dec(hint: "Enter master password", icon: Icons.admin_panel_settings_outlined,
+          suffix: _visBtn(_obscureMaster, () => setState(() => _obscureMaster = !_obscureMaster))),
+    ),
+    const SizedBox(height: 20),
+    _primaryBtn("VERIFY & CONTINUE", _fpLoading ? null : _handleMaster),
+  ]);
 
-  Widget _buildFpStep2() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
+  Widget _step2() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.infoLight,
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+        border: Border.all(color: AppColors.info.withOpacity(0.3)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.info_outline, color: AppColors.info, size: 15),
+        const SizedBox(width: 8),
+        const Expanded(child: Text(
+          "A one-time code will be sent to the email you enter below.",
+          style: TextStyle(fontSize: 11, color: AppColors.textDark),
+        )),
+      ]),
+    ),
+    const SizedBox(height: 14),
+    const Text("Mobile Number", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _fpMobileCtrl,
+      keyboardType: TextInputType.phone,
+      maxLength: 10,
+      onChanged: (v) { if (_mobileError != null) _validateMobile(v); },
+      decoration: _dec(hint: "10-digit mobile number",
+          icon: Icons.phone_android, errorText: _mobileError)
+          .copyWith(counterText: ""),
+    ),
+    const SizedBox(height: 12),
+    const Text("Email Address", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _fpEmailCtrl,
+      keyboardType: TextInputType.emailAddress,
+      onChanged: (v) { if (_emailError != null) _validateEmail(v); },
+      decoration: _dec(hint: "Email to receive OTP",
+          icon: Icons.email_outlined, errorText: _emailError),
+    ),
+    const SizedBox(height: 20),
+    _primaryBtn("SEND CODE", _fpLoading ? null : _handleSendOtp),
+  ]);
+
+  Widget _step3() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Text("Verification Code", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _otpCtrl,
+      keyboardType: TextInputType.number,
+      maxLength: 6,
+      style: const TextStyle(letterSpacing: 6, fontSize: 20, fontWeight: FontWeight.bold),
+      decoration: _dec(hint: "••••••", icon: Icons.lock_clock_outlined).copyWith(counterText: ""),
+    ),
+    const SizedBox(height: 12),
+    const Text("New Password", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _newPassCtrl, obscureText: _obscureNew,
+      decoration: _dec(hint: "Min. 6 characters", icon: Icons.lock_outline,
+          suffix: _visBtn(_obscureNew, () => setState(() => _obscureNew = !_obscureNew))),
+    ),
+    const SizedBox(height: 12),
+    const Text("Confirm Password", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _confPassCtrl, obscureText: _obscureConf,
+      decoration: _dec(hint: "Re-enter password", icon: Icons.lock_outline,
+          suffix: _visBtn(_obscureConf, () => setState(() => _obscureConf = !_obscureConf))),
+    ),
+    const SizedBox(height: 20),
+    _primaryBtn("RESET PASSWORD", _fpLoading ? null : _handleReset),
+  ]);
+
+  Widget _step4() => Column(mainAxisSize: MainAxisSize.min, children: [
+    Container(
+      width: 64, height: 64,
+      decoration: BoxDecoration(color: AppColors.successLight, shape: BoxShape.circle),
+      child: const Icon(Icons.check_circle_outline, color: AppColors.success, size: 36),
+    ),
+    const SizedBox(height: 14),
+    const Text("Password Changed", style: AppTypography.subheading),
+    const SizedBox(height: 6),
+    Text("Your password was updated successfully.",
+        textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+    const SizedBox(height: 24),
+    _primaryBtn("BACK TO LOGIN", _flipToLogin),
+  ]);
+
+  Widget _visBtn(bool obscure, VoidCallback onTap) => IconButton(
+    icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+        color: AppColors.textMuted, size: 20),
+    onPressed: onTap,
+  );
+
+  // ── Login card ─────────────────────────────────────────────────────────
+  Widget _loginCard() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Text("Mobile Number", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _mobileCtrl, keyboardType: TextInputType.phone,
+      decoration: _dec(hint: "Enter mobile number", icon: Icons.phone_android_outlined),
+    ),
+    const SizedBox(height: 14),
+    const Text("Password", style: AppTypography.label),
+    const SizedBox(height: 6),
+    TextField(
+      controller: _passCtrl, obscureText: _obscurePass,
+      onSubmitted: (_) => _handleLogin(),
+      decoration: _dec(hint: "Enter password", icon: Icons.lock_outline,
+          suffix: _visBtn(_obscurePass, () => setState(() => _obscurePass = !_obscurePass))),
+    ),
+    Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: _isFlipping ? null : _flipToFP,
+        style: TextButton.styleFrom(padding: EdgeInsets.zero,
+            minimumSize: const Size(0, 32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+        child: const Text("Forgot Password?",
+            style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+      ),
+    ),
+    const SizedBox(height: 8),
+    _primaryBtn("LOGIN", _loginLoading ? null : _handleLogin),
+  ]);
+
+  // ── FP card ────────────────────────────────────────────────────────────
+  Widget _fpCard() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Row(children: [
+      GestureDetector(
+        onTap: _isFlipping ? null : _flipToLogin,
+        child: Container(
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.info.withOpacity(0.1),
-            borderRadius:
-                BorderRadius.circular(AppDimensions.borderRadius),
-            border: Border.all(color: AppColors.info.withOpacity(0.3)),
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.info_outline,
-                  color: AppColors.info, size: 16),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  "A verification code will be sent to the email address entered below. Please ensure you have access to this email account.",
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textDark),
-                ),
-              ),
-            ],
-          ),
+          child: const Icon(Icons.arrow_back_ios_new, color: AppColors.primary, size: 14),
         ),
-        const SizedBox(height: 16),
-        const Text("Mobile Number", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: fpMobileController,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-              hint: "10-digit mobile number",
-              icon: Icons.phone_android),
-        ),
-        const SizedBox(height: 16),
-        const Text("Email Address", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: fpEmailController,
-          keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-              hint: "Registered email address",
-              icon: Icons.email_outlined),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _fpLoading ? null : _handleSendOtp,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius))),
-            child: _fpLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Text("SEND OTP",
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+      const SizedBox(width: 10),
+      const Expanded(child: Text("Forgot Password",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textHeading))),
+    ]),
+    if (_fpStep != 4) ...[const SizedBox(height: 18), _progress(), const SizedBox(height: 20)],
+    if (_fpStep == 1) _step1(),
+    if (_fpStep == 2) _step2(),
+    if (_fpStep == 3) _step3(),
+    if (_fpStep == 4) _step4(),
+  ]);
 
-  Widget _buildFpStep3() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("OTP Code", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: otpController,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(
-              color: AppColors.textDark,
-              letterSpacing: 4,
-              fontSize: 18,
-              fontWeight: FontWeight.bold),
-          decoration: _inputDecoration(
-              hint: "Enter 6-digit OTP", icon: Icons.lock_clock_outlined),
-        ),
-        const SizedBox(height: 16),
-        const Text("New Password", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: newPasswordController,
-          obscureText: _obscureNewPassword,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-            hint: "Enter new password",
-            icon: Icons.lock_outline,
-            suffixIcon: IconButton(
-              icon: Icon(
-                  _obscureNewPassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: AppColors.textMuted),
-              onPressed: () => setState(
-                  () => _obscureNewPassword = !_obscureNewPassword),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text("Confirm Password", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: confirmPasswordController,
-          obscureText: _obscureConfirmPassword,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-            hint: "Re-enter new password",
-            icon: Icons.lock_outline,
-            suffixIcon: IconButton(
-              icon: Icon(
-                  _obscureConfirmPassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: AppColors.textMuted),
-              onPressed: () => setState(
-                  () => _obscureConfirmPassword = !_obscureConfirmPassword),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _fpLoading ? null : _handleResetPassword,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius))),
-            child: _fpLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Text("RESET PASSWORD",
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFpSuccess() {
-    return Column(
-      children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_circle_outline,
-              color: AppColors.success, size: 40),
-        ),
-        const SizedBox(height: 16),
-        const Text("Password Changed!",
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textHeading)),
-        const SizedBox(height: 8),
-        const Text("Password changed successfully.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppColors.textDark)),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _flipToLogin,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius))),
-            child: const Text("BACK TO LOGIN",
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Build Login card content ──────────────────────────────────────────────
-  Widget _buildLoginCard() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Mobile Number", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: mobileController,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-              hint: "Enter your mobile number", icon: Icons.phone_android),
-        ),
-        const SizedBox(height: 20),
-        const Text("Password", style: AppTypography.label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: passwordController,
-          obscureText: _obscurePassword,
-          style: const TextStyle(color: AppColors.textDark),
-          decoration: _inputDecoration(
-            hint: "············",
-            icon: Icons.lock_outline,
-            suffixIcon: IconButton(
-              icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.textMuted),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _isFlipping ? null : _flipToForgotPassword,
-            style:
-                TextButton.styleFrom(padding: EdgeInsets.zero),
-            child: const Text(
-              "Forgot Password?",
-              style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _loginLoading ? null : handleLogin,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shadowColor: AppColors.primary.withOpacity(0.4),
-                elevation: 5,
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius))),
-            child: _loginLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Text("LOGIN",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Build FP card content ─────────────────────────────────────────────────
-  Widget _buildForgotPasswordCard() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header row with back button
-        Row(
-          children: [
-            GestureDetector(
-              onTap: _isFlipping ? null : _flipToLogin,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius:
-                        BorderRadius.circular(AppDimensions.borderRadius)),
-                child: const Icon(Icons.arrow_back_ios_new,
-                    color: AppColors.primary, size: 16),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text("Forgot Password",
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textHeading)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Progress indicator (steps 1-3, or success)
-        if (_fpStep != 4) ...[
-          _buildProgressIndicator(),
-          const SizedBox(height: 24),
-        ],
-
-        // Step content
-        if (_fpStep == 1) _buildFpStep1(),
-        if (_fpStep == 2) _buildFpStep2(),
-        if (_fpStep == 3) _buildFpStep3(),
-        if (_fpStep == 4) _buildFpSuccess(),
-      ],
-    );
-  }
-
-  // ── Main build ────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final cardW = w > 500 ? 460.0 : double.infinity;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Background blobs
-          Positioned(
-            top: -50,
-            left: -50,
-            child: Container(
-              height: 200,
-              width: 200,
-              decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.5),
-                  shape: BoxShape.circle),
-            ),
-          ),
-          Positioned(
-            bottom: -50,
-            right: -50,
-            child: Container(
-              height: 200,
-              width: 200,
-              decoration: BoxDecoration(
-                  color: AppColors.info.withOpacity(0.5),
-                  shape: BoxShape.circle),
-            ),
-          ),
-
-          // Main content
-          Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
+      body: Stack(children: [
+        // Subtle background circles
+        Positioned(top: -80, left: -60,
+            child: _circle(220, AppColors.primary.withOpacity(0.07))),
+        Positioned(bottom: -80, right: -60,
+            child: _circle(220, AppColors.info.withOpacity(0.07))),
+        SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const Icon(Icons.inventory_2_outlined,
-                        size: 60, color: AppColors.primary),
-                    const SizedBox(height: 20),
-                    const Text("Welcome to M-Store",
-                        style: AppTypography.heading),
-                    const SizedBox(height: 8),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: Text(
-                        _showForgotPassword
-                            ? "Reset your account password"
-                            : "Please sign-in to your account",
-                        key: ValueKey(_showForgotPassword),
-                        style: AppTypography.body,
-                      ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                child: Column(children: [
+                  // Logo
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 12, offset: const Offset(0, 4))],
                     ),
-                    const SizedBox(height: 40),
-
-                    // ── Flip Card ──────────────────────────────────────────
-                    AnimatedBuilder(
-                      animation: _flipAnimation,
-                      builder: (context, child) {
-                        // The flip: 0.0→0.5 shows front, 0.5→1.0 shows back
-                        final angle = _flipAnimation.value * math.pi;
-                        final showBack = angle > math.pi / 2;
-
+                    child: const Icon(Icons.inventory_2_outlined, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text("M-Store", style: AppTypography.heading),
+                  const SizedBox(height: 4),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: Text(
+                      _showFP ? "Reset your password" : "Business management platform",
+                      key: ValueKey(_showFP),
+                      style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  // Flip card
+                  SizedBox(
+                    width: cardW,
+                    child: AnimatedBuilder(
+                      animation: _flipAnim,
+                      builder: (ctx, _) {
+                        final angle  = _flipAnim.value * math.pi;
+                        final back   = angle > math.pi / 2;
+                        final rotate = back ? angle - math.pi : angle;
                         return Transform(
                           transform: Matrix4.identity()
                             ..setEntry(3, 2, 0.001)
-                            ..rotateY(showBack ? angle - math.pi : angle),
+                            ..rotateY(rotate),
                           alignment: Alignment.center,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                                AppDimensions.borderRadius * 2),
-                            child: BackdropFilter(
-                              filter:
-                                  ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                padding: const EdgeInsets.all(30),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.7),
-                                  borderRadius: BorderRadius.circular(
-                                      AppDimensions.borderRadius * 2),
-                                  border: Border.all(
-                                      color: Colors.white.withOpacity(0.8)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.secondary
-                                          .withOpacity(0.1),
-                                      blurRadius: 20,
-                                      spreadRadius: 5,
-                                    ),
-                                  ],
-                                ),
-                                child: showBack
-                                    ? _buildForgotPasswordCard()
-                                    : _buildLoginCard(),
-                              ),
-                            ),
-                          ),
+                          child: _cardSurface(back ? _fpCard() : _loginCard()),
                         );
                       },
                     ),
-                  ],
-                ),
+                  ),
+                ]),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
+
+  Widget _cardSurface(Widget child) => ClipRRect(
+    borderRadius: BorderRadius.circular(AppDimensions.borderRadiusXL),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusXL),
+          border: Border.all(color: Colors.white.withOpacity(0.6)),
+          boxShadow: [
+            BoxShadow(color: AppColors.primary.withOpacity(0.08),
+                blurRadius: 24, spreadRadius: 2, offset: const Offset(0, 8)),
+          ],
+        ),
+        child: child,
+      ),
+    ),
+  );
+
+  Widget _circle(double size, Color color) => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 }

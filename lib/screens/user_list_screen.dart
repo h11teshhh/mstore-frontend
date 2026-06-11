@@ -205,7 +205,7 @@ class _UserListScreenState extends State<UserListScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                      color: AppColors.danger.withOpacity(0.1),
+                      color: AppColors.dangerLight,
                       borderRadius: BorderRadius.circular(6)),
                   child: const Icon(Icons.delete_outline,
                       color: AppColors.danger, size: 18),

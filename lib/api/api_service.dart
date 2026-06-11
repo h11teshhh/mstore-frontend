@@ -6,8 +6,8 @@ class ApiService {
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: "https://mstore-backend.onrender.com",
-      connectTimeout: const Duration(seconds: 60),
-      receiveTimeout: const Duration(seconds: 60),
+      connectTimeout: const Duration(seconds: 90),
+      receiveTimeout: const Duration(seconds: 90),
     ),
   );
 
@@ -245,5 +245,19 @@ class ApiService {
   // GET USERS LIST
   Future<Response> getUsers() async {
     return await _dio.get("/users/");
+  }
+
+  // -----------------------------------------------------------------------
+  // DIRECT PAYMENT — works even with no orders/bills today
+  // -----------------------------------------------------------------------
+  Future<Response> directPayment({
+    required String customerId,
+    required double amount,
+    String note = "",
+  }) async {
+    return await _dio.post(
+      "/payments/direct",
+      data: {"customer_id": customerId, "amount": amount, "note": note},
+    );
   }
 }

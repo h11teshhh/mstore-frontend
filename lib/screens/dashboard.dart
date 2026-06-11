@@ -61,7 +61,6 @@ class _DashboardState extends State<Dashboard> {
 
   Future<void> _initLoad() async {
     // Artificial delay for skeleton effect
-    await Future.delayed(const Duration(milliseconds: 1000));
     await loadUser();
     if (mounted) setState(() => _isLoading = false);
   }
@@ -205,7 +204,7 @@ class _DashboardState extends State<Dashboard> {
         .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
 
       // ✅ 1. CUSTOM APP BAR WITH PROFILE MENU
@@ -215,7 +214,7 @@ class _DashboardState extends State<Dashboard> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: AppBar(
-              backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.8),
+              backgroundColor: AppColors.background.withOpacity(0.8),
               elevation: 0,
               centerTitle: true,
               systemOverlayStyle: const SystemUiOverlayStyle(
@@ -592,7 +591,7 @@ class _DashboardState extends State<Dashboard> {
   Widget _buildSkeletonDashboard() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(AppDimensions.isMobile(context) ? 14 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

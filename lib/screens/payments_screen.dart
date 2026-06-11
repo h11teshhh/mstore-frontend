@@ -240,11 +240,11 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     final double topOffset = size.height * 0.08;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background, // Sneat Background
       extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         // ✅ Status Bar Visibility
@@ -372,7 +372,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFF5F5F9),
+                            fillColor: AppColors.background,
                             prefixIcon: const Icon(
                               Icons.location_on,
                               color: AppColors.primary,
@@ -522,7 +522,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.danger.withOpacity(0.1),
+                    color: AppColors.dueLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -533,7 +533,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.danger.withOpacity(0.7),
+                          color: AppColors.dueAmount.withOpacity(0.7),
                         ),
                       ),
                       Text(

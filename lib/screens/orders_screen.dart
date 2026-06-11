@@ -138,12 +138,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final double topOffset = size.height * 0.08;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
 
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         systemOverlayStyle: const SystemUiOverlayStyle(
@@ -277,7 +277,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             filled: true,
-                            fillColor: const Color(0xFFF5F5F9),
+                            fillColor: AppColors.background,
                             prefixIcon: const Icon(
                               Icons.location_on,
                               color: AppColors.primary,

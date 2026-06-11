@@ -94,11 +94,11 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background, // Sneat Background
       extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         // ✅ Status Bar Visibility
@@ -464,7 +464,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppColors.danger.withOpacity(0.1),
+                    color: AppColors.dangerLight,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Icon(Icons.delete_outline,

@@ -37,13 +37,7 @@ void main() async {
   // 1. Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Lock Orientation (Optional but recommended for business apps)
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // 3. Initialize Token Storage (Load login data into memory instantly)
+  // 2. Initialize Token Storage (Load login data into memory instantly)
   await TokenStorage.init();
 
   runApp(const MyApp());
@@ -62,14 +56,14 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         // fontFamily: 'PublicSans', // Uncomment if you added the font
-        scaffoldBackgroundColor: const Color(0xFFF5F5F9),
-        primaryColor: const Color(0xFF696CFF),
+        scaffoldBackgroundColor: const Color(0xFFF4F5FA),
+        primaryColor: const Color(0xFF5F63F2),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF696CFF),
-          primary: const Color(0xFF696CFF),
+          seedColor: const Color(0xFF5F63F2),
+          primary: const Color(0xFF5F63F2),
           secondary: const Color(0xFF8592A3),
           surface: Colors.white,
-          background: const Color(0xFFF5F5F9),
+          background: const Color(0xFFF4F5FA),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -92,7 +86,7 @@ class MyApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF696CFF),
+            backgroundColor: const Color(0xFF5F63F2),
             foregroundColor: Colors.white,
             elevation: 4,
             shape: RoundedRectangleBorder(
@@ -137,6 +131,7 @@ class MyApp extends StatelessWidget {
         "/createUser": (context) => const CreateUserScreen(),
         "/manageUsers": (context) => const UserListScreen(),
         "/endOfDayReport": (context) => const EndOfDayReportScreen(),
+        "/reports": (context) => const EndOfDayReportScreen(),
 
         // --- Inventory ---
         "/addItem": (context) => const AddItemScreen(),

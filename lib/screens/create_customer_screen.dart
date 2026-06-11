@@ -46,7 +46,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
   void initState() {
     super.initState();
     // Simulate a quick UI prep to show off the skeleton effect
-    Timer(const Duration(milliseconds: 800), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _isInitLoading = false);
     });
   }
