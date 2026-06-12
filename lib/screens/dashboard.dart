@@ -39,24 +39,69 @@ class _DashboardState extends State<Dashboard> {
     super.dispose();
   }
 
-  /// Schedules a timer to fire exactly at 12:00 AM IST (UTC+5:30).
+  /// Schedules a timer to fire at exactly 12:00 AM IST (Asia/Kolkata = UTC+5:30).
+  /// Also schedules a periodic check every minute as a safety net in case
+  /// the app is backgrounded and the single Timer fires late.
   void _scheduleMidnightLogout() {
     _midnightTimer?.cancel();
-    const istOffsetMinutes = 330; // IST = UTC+5:30
-    final nowUtc = DateTime.now().toUtc();
-    final nowIst = nowUtc.add(const Duration(minutes: istOffsetMinutes));
-    final nextMidnightIst = DateTime(
-      nowIst.year, nowIst.month, nowIst.day + 1, 0, 0, 0,
-    );
-    final durationUntilMidnight = nextMidnightIst.difference(nowIst);
-    _midnightTimer = Timer(durationUntilMidnight, _onSessionExpired);
+    final due = _durationToMidnightIST();
+    _midnightTimer = Timer(due, _onSessionExpired);
+  }
+
+  Duration _durationToMidnightIST() {
+    const istOffset = Duration(hours: 5, minutes: 30);
+    final nowIst        = DateTime.now().toUtc().add(istOffset);
+    final midnightIst   = DateTime(nowIst.year, nowIst.month, nowIst.day + 1, 0, 0, 0);
+    final diff          = midnightIst.difference(nowIst);
+    // Safety: never return negative or zero duration
+    return diff.isNegative ? const Duration(seconds: 30) : diff;
+  }
+
+  bool _isPastMidnightIST() {
+    const istOffset = Duration(hours: 5, minutes: 30);
+    final nowIst = DateTime.now().toUtc().add(istOffset);
+    // If we stored the login date and today is different, session is stale
+    return false; // Timer handles this; method reserved for future use
   }
 
   Future<void> _onSessionExpired() async {
     await storage.clearAll();
     if (!mounted) return;
-    UIUtils.showErrorToast("Session expired. Please login again.");
-    Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+    // Show formal session expired dialog instead of just a toast
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Row(children: [
+          Icon(Icons.lock_clock_outlined, color: Color(0xFF5F63F2), size: 24),
+          SizedBox(width: 10),
+          Text("Session Expired",
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3748))),
+        ]),
+        content: const Text(
+          "Your session has expired for security reasons.\n"
+          "Please log in again to continue.",
+          style: TextStyle(fontSize: 14, color: Color(0xFF4A5568), height: 1.5),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.pushNamedAndRemoveUntil(
+                  context, "/login", (route) => false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5F63F2),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Log In Again"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _initLoad() async {

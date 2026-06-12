@@ -14,7 +14,7 @@ class PaymentsScreen extends StatefulWidget {
   State<PaymentsScreen> createState() => _PaymentsScreenState();
 }
 
-class _PaymentsScreenState extends State<PaymentsScreen> {
+class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObserver {
   final ApiService api = ApiService();
 
   bool isLoading = false;
@@ -31,18 +31,45 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   final Map<String, TextEditingController> amountControllers = {};
   final Map<String, String> paymentMode = {}; // 'FULL' or 'PARTIAL'
 
+  // IST date tracking for midnight auto-reset
+  String _currentIstDate = '';
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _currentIstDate = _todayIstStr();
     loadAreas();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (var controller in amountControllers.values) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+
+  String _todayIstStr() {
+    final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    return '${ist.year}-${ist.month.toString().padLeft(2, '0')}-${ist.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final today = _todayIstStr();
+      if (today != _currentIstDate) {
+        // IST calendar day changed — clear today's data so stale data is not shown
+        setState(() {
+          _currentIstDate = today;
+          billsByCustomer.clear();
+          selectedArea = null;
+        });
+      }
+    }
   }
 
   // 1. Fetch Areas
@@ -134,10 +161,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       amountToPay = double.tryParse(text) ?? 0;
     }
 
-    // ✅ LOGIC FIX: User requested to allow 0 payment.
-    // We only block negative numbers now.
-    if (amountToPay < 0) {
-      UIUtils.showErrorToast("Amount cannot be negative");
+    if (amountToPay <= 0) {
+      UIUtils.showErrorToast("Please enter a valid payment amount");
       return;
     }
 

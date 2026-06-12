@@ -516,7 +516,9 @@ class _CustomerDetailState extends State<CustomerDetailScreen>
     );
   }
 
-  // ── Order list — status derived from order.status field ───────────────────
+  // ── Order list ─────────────────────────────────────────────────────────────
+  // payment_status comes from backend: PAID / PARTIAL / PENDING
+  // remaining_due shows how much of that order is still unpaid
   Widget _orderList() {
     if (orders.isEmpty) return _empty('No orders found');
     return ListView.separated(
@@ -524,47 +526,71 @@ class _CustomerDetailState extends State<CustomerDetailScreen>
       itemCount: orders.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
-        final o = orders[i];
-        // Use order status returned by backend — CLOSED = paid
-        final rawStatus = (o['status'] ?? 'CREATED').toString().toUpperCase();
-        final isPaid    = rawStatus == 'CLOSED';
+        final o             = orders[i];
+        final payStatus     = (o['payment_status'] ?? 'PENDING').toString().toUpperCase();
+        final remainingDue  = double.tryParse(o['remaining_due']?.toString() ?? '0') ?? 0;
+        final billAmount    = double.tryParse(o['bill_amount']?.toString() ??
+                              o['total_amount']?.toString() ?? '0') ?? 0;
+
+        Color badgeFg, badgeBg;
+        String badgeLabel;
+        switch (payStatus) {
+          case 'PAID':
+            badgeFg    = AppColors.success;
+            badgeBg    = AppColors.successLight;
+            badgeLabel = 'PAID';
+            break;
+          case 'PARTIAL':
+            badgeFg    = AppColors.info;
+            badgeBg    = AppColors.infoLight;
+            badgeLabel = 'PARTIAL';
+            break;
+          default:
+            badgeFg    = AppColors.warning;
+            badgeBg    = AppColors.warningLight;
+            badgeLabel = 'PENDING';
+        }
 
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2))
-            ],
+            boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 6, offset: const Offset(0, 2))],
           ),
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            leading: Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.receipt_long_rounded,
-                  color: AppColors.primary, size: 20),
-            ),
-            title: Text(
-              _fmtCurrency(o['total_amount']),
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppColors.textHeading),
-            ),
-            subtitle: Text(_fmtDate(o['created_at']),
-                style: AppTypography.caption),
-            trailing: _statusBadge(
-              isPaid ? 'PAID' : 'PENDING',
-              isPaid ? AppColors.success : AppColors.warning,
-              isPaid ? AppColors.successLight : AppColors.warningLight,
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.receipt_long_rounded,
+                    color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_fmtCurrency(billAmount),
+                      style: const TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 15, color: AppColors.textHeading)),
+                  const SizedBox(height: 3),
+                  Text(_fmtDate(o['created_at']), style: AppTypography.caption),
+                  if (payStatus == 'PARTIAL' && remainingDue > 0) ...[
+                    const SizedBox(height: 2),
+                    Text('Due: ${_fmtCurrency(remainingDue)}',
+                        style: AppTypography.caption.copyWith(
+                            color: AppColors.dueAmount,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              )),
+              const SizedBox(width: 8),
+              _statusBadge(badgeLabel, badgeFg, badgeBg),
+            ]),
           ),
         );
       },

@@ -504,64 +504,92 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildInnerOrderRow(Map<String, dynamic> order) {
-    final bill = _formatCurrency(order["bill_amount"]);
-    final items = order["items"] as List? ?? [];
-    final orderId = order["order_id"].toString();
+    final billAmt     = _formatCurrency(order["bill_amount"]);
+    final items       = order["items"] as List? ?? [];
+    final orderId     = order["order_id"].toString();
+    final payStatus   = (order["payment_status"] ?? "PENDING").toString().toUpperCase();
+    final remainingDue= double.tryParse(order["remaining_due"]?.toString() ?? "0") ?? 0;
+
+    Color badgeFg, badgeBg;
+    String badgeLabel;
+    switch (payStatus) {
+      case "PAID":
+        badgeFg    = AppColors.success;
+        badgeBg    = AppColors.successLight;
+        badgeLabel = "PAID";
+        break;
+      case "PARTIAL":
+        badgeFg    = AppColors.info;
+        badgeBg    = AppColors.infoLight;
+        badgeLabel = "PARTIAL";
+        break;
+      default:
+        badgeFg    = AppColors.warning;
+        badgeBg    = AppColors.warningLight;
+        badgeLabel = "PENDING";
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Order header row: ID + amount + status badge
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
-                  "Order #$orderId",
+                  "Order #${orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId}",
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+                    fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                bill,
+                billAmt,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppColors.textHeading,
+                  fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textHeading),
+              ),
+              const SizedBox(width: 8),
+              // Payment status badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: Text(badgeLabel,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeFg)),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ...items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  Text("• ", style: TextStyle(color: Colors.grey[400])),
-                  Expanded(
-                    child: Text(
-                      "${item["item_name"]} (${item["quantity"]} x ${item["price"]})",
-                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                    ),
-                  ),
-                  Text(
-                    _formatCurrency(item["total"]),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+          // Remaining due (show only if partial)
+          if (payStatus == "PARTIAL" && remainingDue > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 3, bottom: 2),
+              child: Text(
+                "Due: ${_formatCurrency(remainingDue)}",
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.dueAmount),
               ),
-            );
-          }),
+            ),
+          const SizedBox(height: 6),
+          // Item lines
+          ...items.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Row(children: [
+              Text("• ", style: TextStyle(color: Colors.grey[400])),
+              Expanded(
+                child: Text(
+                  "${item["item_name"]} (${item["quantity"]} x ${item["price"]})",
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+              ),
+              Text(_formatCurrency(item["total"]),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            ]),
+          )),
           const Divider(height: 20),
         ],
       ),
