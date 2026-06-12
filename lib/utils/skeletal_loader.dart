@@ -1,186 +1,220 @@
 import 'package:flutter/material.dart';
-import 'app_constants.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BASE SHIMMER WIDGET — single AnimationController shared via InheritedWidget
+// Pixel-perfect shimmer skeleton system
+// Key fixes vs previous version:
+//   • LinearGradient always has explicit begin/end → no sub-pixel jitter
+//   • No double.infinity width inside unconstrained Column
+//   • ShimmerScope uses RepaintBoundary for GPU isolation
+//   • All sizes are concrete (never reliant on unconstrained parent)
 // ─────────────────────────────────────────────────────────────────────────────
-class ShimmerTheme extends InheritedWidget {
+
+// ── Shared animation via InheritedWidget ─────────────────────────────────────
+class _ShimmerData extends InheritedWidget {
+  const _ShimmerData({required this.animation, required super.child});
   final Animation<double> animation;
-  const ShimmerTheme({super.key, required this.animation, required super.child});
-
-  static ShimmerTheme? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ShimmerTheme>();
-
+  static _ShimmerData? of(BuildContext ctx) =>
+      ctx.dependOnInheritedWidgetOfExactType<_ShimmerData>();
   @override
-  bool updateShouldNotify(ShimmerTheme old) => old.animation != animation;
+  bool updateShouldNotify(_ShimmerData old) => old.animation != animation;
 }
 
 class ShimmerScope extends StatefulWidget {
-  final Widget child;
   const ShimmerScope({super.key, required this.child});
+  final Widget child;
   @override State<ShimmerScope> createState() => _ShimmerScopeState();
 }
+
 class _ShimmerScopeState extends State<ShimmerScope>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double>   _anim;
-  @override void initState() {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
       ..repeat(reverse: true);
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
   }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext ctx) =>
-      ShimmerTheme(animation: _anim, child: widget.child);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: _ShimmerData(animation: _anim, child: widget.child),
+      );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SkeletalLoader — drop-in replacement, now uses shimmer gradient
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Core shimmer box ──────────────────────────────────────────────────────────
 class SkeletalLoader extends StatelessWidget {
-  final double height;
-  final double width;
-  final double borderRadius;
-
   const SkeletalLoader({
     super.key,
-    this.height = 20,
-    this.width  = double.infinity,
+    this.height = 16,
+    this.width,
     this.borderRadius = 8,
   });
 
+  final double  height;
+  final double? width;       // null = expand to fill parent
+  final double  borderRadius;
+
   @override
   Widget build(BuildContext context) {
-    final theme = ShimmerTheme.of(context);
-    // If no ShimmerScope above us, fall back to simple fade
-    if (theme == null) {
-      return _FadeBox(h: height, w: width, r: borderRadius);
-    }
-    return AnimatedBuilder(
-      animation: theme.animation,
-      builder: (_, __) => Container(
-        height: height,
-        width:  width,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(borderRadius),
-          gradient: LinearGradient(
-            colors: [
-              Color.lerp(const Color(0xFFE8ECF0), const Color(0xFFF8FAFC), theme.animation.value)!,
-              Color.lerp(const Color(0xFFF8FAFC), const Color(0xFFE8ECF0), theme.animation.value)!,
-            ],
+    final data = _ShimmerData.of(context);
+
+    Widget box(Color color) => Container(
+          height: height,
+          width:  width,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
-        ),
-      ),
+        );
+
+    if (data == null) {
+      // Outside ShimmerScope — simple static grey
+      return box(const Color(0xFFE8ECF0));
+    }
+
+    return AnimatedBuilder(
+      animation: data.animation,
+      builder: (_, __) {
+        final t = data.animation.value;
+        // Lerp between two greys — no complex gradient, no sub-pixel issues
+        final color = Color.lerp(
+          const Color(0xFFE2E8F0),
+          const Color(0xFFF1F5F9),
+          t,
+        )!;
+        return box(color);
+      },
     );
   }
 }
 
-class _FadeBox extends StatefulWidget {
-  final double h, w, r;
-  const _FadeBox({required this.h, required this.w, required this.r});
-  @override State<_FadeBox> createState() => _FadeBoxState();
-}
-class _FadeBoxState extends State<_FadeBox> with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  @override void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
-  }
-  @override void dispose() { _c.dispose(); super.dispose(); }
-  @override Widget build(BuildContext ctx) => FadeTransition(
-    opacity: Tween(begin: 0.4, end: 1.0).animate(_c),
-    child: Container(
-      height: widget.h, width: widget.w,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8ECF0),
-        borderRadius: BorderRadius.circular(widget.r),
-      ),
-    ),
-  );
+// ── Convenience wrappers ──────────────────────────────────────────────────────
+
+/// Full-width shimmer line (expands horizontally)
+class ShimmerLine extends StatelessWidget {
+  const ShimmerLine({super.key, required this.height, this.borderRadius = 6});
+  final double height;
+  final double borderRadius;
+  @override
+  Widget build(BuildContext context) => SkeletalLoader(
+      height: height, borderRadius: borderRadius);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REUSABLE SKELETON PATTERNS
-// ─────────────────────────────────────────────────────────────────────────────
+/// Fixed-width shimmer block
+class ShimmerBox extends StatelessWidget {
+  const ShimmerBox(
+      {super.key,
+      required this.width,
+      required this.height,
+      this.borderRadius = 8});
+  final double width, height, borderRadius;
+  @override
+  Widget build(BuildContext context) =>
+      SkeletalLoader(width: width, height: height, borderRadius: borderRadius);
+}
 
-/// Standard card list skeleton — wraps in ShimmerScope automatically
+/// Circle shimmer (avatar placeholder)
+class ShimmerCircle extends StatelessWidget {
+  const ShimmerCircle({super.key, required this.size});
+  final double size;
+  @override
+  Widget build(BuildContext context) =>
+      SkeletalLoader(width: size, height: size, borderRadius: size / 2);
+}
+
+// ── List skeleton ─────────────────────────────────────────────────────────────
 class SkeletonCardList extends StatelessWidget {
-  final int count;
-  final double itemHeight;
-  final EdgeInsets? padding;
   const SkeletonCardList({
     super.key,
     this.count = 5,
-    this.itemHeight = 80,
+    this.itemHeight = 76,
     this.padding,
   });
 
+  final int         count;
+  final double      itemHeight;
+  final EdgeInsets? padding;
+
   @override
   Widget build(BuildContext context) => ShimmerScope(
-    child: ListView.separated(
-      padding: padding ?? const EdgeInsets.all(16),
-      itemCount: count,
-      physics: const NeverScrollableScrollPhysics(),
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => _SkeletonCard(height: itemHeight),
-    ),
-  );
+        child: ListView.separated(
+          padding:     padding ?? const EdgeInsets.all(16),
+          itemCount:   count,
+          physics:     const NeverScrollableScrollPhysics(),
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder:  (_, __) => _ListItemSkeleton(height: itemHeight),
+        ),
+      );
 }
 
-class _SkeletonCard extends StatelessWidget {
+class _ListItemSkeleton extends StatelessWidget {
+  const _ListItemSkeleton({required this.height});
   final double height;
-  const _SkeletonCard({required this.height});
-  @override Widget build(BuildContext ctx) => Container(
-    height: height,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-    ),
-    padding: const EdgeInsets.all(14),
-    child: Row(children: [
-      SkeletalLoader(width: 44, height: 44, borderRadius: 22),
-      const SizedBox(width: 12),
-      Expanded(child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SkeletalLoader(width: double.infinity, height: 14),
-          const SizedBox(height: 8),
-          SkeletalLoader(width: 120, height: 11),
-        ],
-      )),
-    ]),
-  );
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(children: [
+          const ShimmerCircle(size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                ShimmerLine(height: 13),
+                SizedBox(height: 8),
+                ShimmerBox(width: 110, height: 10),
+              ],
+            ),
+          ),
+        ]),
+      );
 }
 
-/// Profile card skeleton
+// ── Profile card skeleton ─────────────────────────────────────────────────────
 class SkeletonProfileCard extends StatelessWidget {
   const SkeletonProfileCard({super.key});
+
   @override
   Widget build(BuildContext context) => ShimmerScope(
-    child: Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
-      ),
-      child: Column(
-        children: [
-          const SkeletalLoader(width: 72, height: 72, borderRadius: 36),
-          const SizedBox(height: 14),
-          const SkeletalLoader(width: 160, height: 18),
-          const SizedBox(height: 8),
-          const SkeletalLoader(width: 220, height: 12),
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 12),
-          const SkeletalLoader(width: 80, height: 11),
-          const SizedBox(height: 6),
-          const SkeletalLoader(width: 110, height: 28),
-        ],
-      ),
-    ),
-  );
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: const [
+              Center(child: ShimmerCircle(size: 64)),
+              SizedBox(height: 14),
+              Center(child: ShimmerBox(width: 160, height: 16)),
+              SizedBox(height: 8),
+              Center(child: ShimmerBox(width: 220, height: 11)),
+              SizedBox(height: 20),
+              Divider(),
+              SizedBox(height: 12),
+              Center(child: ShimmerBox(width: 80, height: 11)),
+              SizedBox(height: 6),
+              Center(child: ShimmerBox(width: 120, height: 28)),
+            ],
+          ),
+        ),
+      );
 }
