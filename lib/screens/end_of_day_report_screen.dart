@@ -553,11 +553,11 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: SkeletalLoader(width: double.infinity, height: 40),
+                      child: SkeletalLoader(height: 40),
                     ),
                     SizedBox(width: 20),
                     Expanded(
-                      child: SkeletalLoader(width: double.infinity, height: 40),
+                      child: SkeletalLoader(height: 40),
                     ),
                   ],
                 ),
@@ -569,11 +569,11 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
           Row(
             children: const [
               Expanded(
-                child: SkeletalLoader(width: double.infinity, height: 40),
+                child: SkeletalLoader(height: 40),
               ),
               SizedBox(width: 16),
               Expanded(
-                child: SkeletalLoader(width: double.infinity, height: 40),
+                child: SkeletalLoader(height: 40),
               ),
             ],
           ),

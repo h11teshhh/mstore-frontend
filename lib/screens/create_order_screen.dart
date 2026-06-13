@@ -36,8 +36,8 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   @override
   void initState() {
     super.initState();
-    // Simulate a quick UI prep to show off the skeleton effect
-    Timer(const Duration(milliseconds: 1000), () {
+    // Show form immediately - no artificial delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _isInitLoading = false);
     });
     loadData();
@@ -859,11 +859,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
               children: const [
                 SkeletalLoader(width: 80, height: 12),
                 SizedBox(height: 8),
-                SkeletalLoader(width: double.infinity, height: 48),
+                SkeletalLoader(height: 48),
                 SizedBox(height: 16),
                 SkeletalLoader(width: 80, height: 12),
                 SizedBox(height: 8),
-                SkeletalLoader(width: double.infinity, height: 48),
+                SkeletalLoader(height: 48),
               ],
             ),
           ),

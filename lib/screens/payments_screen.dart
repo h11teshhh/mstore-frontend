@@ -566,7 +566,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: AppColors.danger,
+                          color: AppColors.dueAmount,
                         ),
                       ),
                     ],

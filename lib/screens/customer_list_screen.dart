@@ -450,7 +450,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: due > 0 ? AppColors.danger : AppColors.success,
+                        color: due > 0 ? AppColors.dueAmount : AppColors.success,
                       ),
                     ),
                   ],

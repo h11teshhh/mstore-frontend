@@ -223,7 +223,7 @@ class _UserListScreenState extends State<UserListScreen> {
       children: List.generate(
           5, (_) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: SkeletalLoader(width: double.infinity, height: 76, borderRadius: 12),
+                child: SkeletalLoader(height: 76, borderRadius: 12),
               )),
     );
   }
