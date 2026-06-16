@@ -57,12 +57,6 @@ class _DashboardState extends State<Dashboard> {
     return diff.isNegative ? const Duration(seconds: 30) : diff;
   }
 
-  bool _isPastMidnightIST() {
-    const istOffset = Duration(hours: 5, minutes: 30);
-    final nowIst = DateTime.now().toUtc().add(istOffset);
-    // If we stored the login date and today is different, session is stale
-    return false; // Timer handles this; method reserved for future use
-  }
 
   Future<void> _onSessionExpired() async {
     await storage.clearAll();
