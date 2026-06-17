@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import '../storage/token_storage.dart';
 import '../utils/role_helper.dart';
 import '../utils/app_constants.dart';
-import '../utils/ui_utils.dart'; // ✅ UIUtils
+import '../utils/ui_utils.dart'; // ✅ UIUtils + AppToast
 import '../utils/skeletal_loader.dart'; // ✅ Skeleton
 
 class Dashboard extends StatefulWidget {
@@ -122,14 +122,14 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> logout() async {
-    // ✅ UIUtils: Show snackbar
+    // ✅ UIUtils: Show loading toast
     UIUtils.showProcessingSnackbar(context, message: "Logging out...");
 
     await Future.delayed(const Duration(milliseconds: 500));
     await storage.clearAll();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Hide loading
+      AppToast.dismiss(); // Dismiss loading toast before navigating
       Navigator.pushReplacementNamed(context, "/login");
     }
   }
@@ -316,14 +316,29 @@ class _DashboardState extends State<Dashboard> {
                       }
                     },
                     // The Visible Icon in AppBar
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.primary.withOpacity(0.15),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : "U",
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.30),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : "U",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ),

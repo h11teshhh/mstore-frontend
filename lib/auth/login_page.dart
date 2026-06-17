@@ -46,6 +46,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   int _fpStep = 1; // 1=master, 2=user id, 3=OTP+reset, 4=success
   String _fpMobile = "";
 
+  // Form keys for inline validation
+  final _loginFormKey = GlobalKey<FormState>();
+
   // Client-side validation state (instant feedback)
   String? _emailError;
   String? _mobileError;
@@ -160,14 +163,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   // ── LOGIN ────────────────────────────────────────────────────────────────
   Future<void> _handleLogin() async {
-    if (_mobileCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) {
-      UIUtils.showSnackBar(
-        context,
-        "Please enter mobile number and password",
-        isError: true,
-      );
-      return;
-    }
+    // Validate form fields inline before calling API
+    if (!(_loginFormKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     setState(() => _loginLoading = true);
     UIUtils.showProcessingSnackbar(context, message: "Logging in...");
@@ -657,57 +654,77 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   );
 
   // ── Login card ─────────────────────────────────────────────────────────
-  Widget _loginCard() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text("Mobile Number", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _mobileCtrl,
-        keyboardType: TextInputType.phone,
-        decoration: _dec(
-          hint: "Enter mobile number",
-          icon: Icons.phone_android_outlined,
+  Widget _loginCard() => Form(
+    key: _loginFormKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Mobile Number", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _mobileCtrl,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Enter 10-digit mobile number",
+            icon: Icons.phone_android_outlined,
+          ).copyWith(counterText: ""),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Mobile number is required";
+            if (!RegExp(r'^\d{10}$').hasMatch(v)) {
+              return "Enter a valid 10-digit mobile number";
+            }
+            return null;
+          },
         ),
-      ),
-      const SizedBox(height: 14),
-      const Text("Password", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _passCtrl,
-        obscureText: _obscurePass,
-        onSubmitted: (_) => _handleLogin(),
-        decoration: _dec(
-          hint: "Enter password",
-          icon: Icons.lock_outline,
-          suffix: _visBtn(
-            _obscurePass,
-            () => setState(() => _obscurePass = !_obscurePass),
+        const SizedBox(height: 14),
+        const Text("Password", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _passCtrl,
+          obscureText: _obscurePass,
+          onFieldSubmitted: (_) => _handleLogin(),
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Enter password",
+            icon: Icons.lock_outline,
+            suffix: _visBtn(
+              _obscurePass,
+              () => setState(() => _obscurePass = !_obscurePass),
+            ),
           ),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Password is required";
+            if (v.length < 4) return "Password is too short";
+            return null;
+          },
         ),
-      ),
-      Align(
-        alignment: Alignment.centerRight,
-        child: TextButton(
-          onPressed: _isFlipping ? null : _flipToFP,
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: const Size(0, 32),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: const Text(
-            "Forgot Password?",
-            style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _isFlipping ? null : _flipToFP,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              "Forgot Password?",
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
-      ),
-      const SizedBox(height: 8),
-      _primaryBtn("LOGIN", _loginLoading ? null : _handleLogin),
-    ],
+        const SizedBox(height: 8),
+        _primaryBtn("LOGIN", _loginLoading ? null : _handleLogin),
+      ],
+    ),
   );
 
   // ── FP card ────────────────────────────────────────────────────────────
