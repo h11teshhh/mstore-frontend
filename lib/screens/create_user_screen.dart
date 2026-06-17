@@ -24,14 +24,16 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
-  final TextEditingController roleController = TextEditingController(text: "ADMIN");
+  final TextEditingController roleController = TextEditingController(
+    text: "ADMIN",
+  );
 
   String selectedRole = "ADMIN";
   bool loading = false;
   bool _obscurePassword = true;
   bool _isInitLoading = true;
 
-  final List<String> roles = ["ADMIN", "DELIVERY"];
+  final List<String> roles = ["SUPERADMIN", "ADMIN", "DELIVERY"];
 
   @override
   void initState() {
@@ -144,7 +146,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               ...roles.map((role) {
                 final isSelected = selectedRole == role;
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
                   leading: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
@@ -163,12 +168,17 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     role,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? AppColors.primary : AppColors.textHeading,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textHeading,
                       fontSize: 16,
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                        )
                       : const Icon(Icons.circle_outlined, color: Colors.grey),
                   onTap: () {
                     setState(() {
@@ -259,10 +269,17 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5),
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 5,
+                    ),
                   ],
                 ),
-                child: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),
@@ -274,7 +291,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               child: Column(
                 children: [
                   SizedBox(
-                    height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+                    height:
+                        kToolbarHeight +
+                        MediaQuery.of(context).padding.top +
+                        20,
                   ),
                   Center(
                     child: ConstrainedBox(
@@ -324,7 +344,9 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                         Icons.person_outline,
                                       ),
                                       validator: (val) =>
-                                          (val == null || val.isEmpty) ? "Name is required" : null,
+                                          (val == null || val.isEmpty)
+                                          ? "Name is required"
+                                          : null,
                                     ),
                                     const SizedBox(height: 16),
 
@@ -338,8 +360,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                         counterText: "",
                                       ),
                                       validator: (val) {
-                                        if (val == null || val.isEmpty) return "Mobile is required";
-                                        if (val.length != 10) return "Enter valid 10-digit number";
+                                        if (val == null || val.isEmpty)
+                                          return "Mobile is required";
+                                        if (val.length != 10)
+                                          return "Enter valid 10-digit number";
                                         return null;
                                       },
                                     ),
@@ -379,7 +403,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                             size: 20,
                                           ),
                                           onPressed: () => setState(
-                                            () => _obscurePassword = !_obscurePassword,
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
                                           ),
                                         ),
                                       ),
@@ -426,16 +451,27 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       physics: const NeverScrollableScrollPhysics(),
       child: Column(
         children: [
-          SizedBox(height: kToolbarHeight + MediaQuery.of(context).padding.top + 20),
+          SizedBox(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                const Center(child: SkeletalLoader(width: 70, height: 70, borderRadius: 35)),
+                const Center(
+                  child: SkeletalLoader(
+                    width: 70,
+                    height: 70,
+                    borderRadius: 35,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

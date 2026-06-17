@@ -218,7 +218,12 @@ class ApiService {
   }) async {
     return await _dio.post(
       "/auth/forgot-password/reset",
-      data: {"mobile": mobile, "otp": otp, "new_password": newPassword, "confirm_password": newPassword},
+      data: {
+        "mobile": mobile,
+        "otp": otp,
+        "new_password": newPassword,
+        "confirm_password": newPassword,
+      },
     );
   }
 
