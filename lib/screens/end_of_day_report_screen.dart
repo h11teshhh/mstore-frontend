@@ -44,6 +44,7 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
       final res = await api.getEndOfDaySummary();
       if (!mounted) return;
 
+      AppToast.dismiss(); // clear refresh loading toast
       setState(() {
         report = res.data;
         isLoading = false;

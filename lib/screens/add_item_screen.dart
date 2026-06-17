@@ -51,7 +51,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
 
       UIUtils.showSuccessDialog(
@@ -63,7 +63,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
       String msg = "Unexpected error occurred";
       if (e is DioException) {
@@ -175,6 +175,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 const SizedBox(height: 16),
 
                 TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   controller: itemController,
                   decoration: UIUtils.inputDecoration("Item Name", Icons.inventory_2_outlined),
                   validator: (value) =>
@@ -183,6 +184,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 const SizedBox(height: 20),
 
                 TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   controller: priceController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: UIUtils.inputDecoration("Price (₹)", Icons.currency_rupee_rounded),

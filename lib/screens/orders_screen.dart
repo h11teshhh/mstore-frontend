@@ -106,6 +106,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         tempMap[custId]!["orders"].add(order);
       }
 
+      AppToast.dismiss(); // clear refresh loading toast
       setState(() {
         groupedOrders = tempMap.values.toList();
         isLoading = false;

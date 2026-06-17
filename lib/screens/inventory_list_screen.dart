@@ -56,6 +56,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
       final response = await api.getInventoryStock();
       if (!mounted) return;
 
+      AppToast.dismiss(); // clear refresh loading toast
       setState(() {
         allItems = response.data ?? [];
         filteredItems = allItems;

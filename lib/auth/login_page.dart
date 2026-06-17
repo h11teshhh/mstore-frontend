@@ -174,7 +174,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         _passCtrl.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       if (res.data != null) {
         final token = res.data["access_token"];
         if (token != null) {
@@ -197,7 +197,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       String msg = "Invalid mobile number or password";
       try {
         final dynamic err = (e as dynamic).response?.data;
@@ -249,13 +249,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       await _api.forgotPasswordSendOtp(mobile: mobile, email: email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       _fpMobile = mobile;
       UIUtils.showSnackBar(context, "Code sent! Check your inbox.");
       if (mounted) setState(() => _fpStep = 3);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       String msg = "Couldn't send verification code. Please try again.";
       try {
         final dynamic err = (e as dynamic).response?.data;
@@ -334,11 +334,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         newPassword: newPass,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       if (mounted) setState(() => _fpStep = 4);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       String msg = "Invalid or expired verification code";
       try {
         final dynamic err = (e as dynamic).response?.data;

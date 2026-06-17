@@ -228,6 +228,7 @@ class _BillsScreenState extends State<BillsScreen> {
       } else {
         await _saveToDevice(bytes, name, 'bulk');
       }
+      AppToast.dismiss(); // clear generating toast on success
     } catch (_) {
       UIUtils.showSnackBar(context, 'Download failed. Please try again.', isError: true);
     } finally {

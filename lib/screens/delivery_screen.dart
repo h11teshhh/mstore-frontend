@@ -36,6 +36,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       final response = await api.getTodayTruckLoad();
       if (!mounted) return;
 
+      AppToast.dismiss(); // clear refresh loading toast
       setState(() {
         data = response.data;
         isLoading = false;

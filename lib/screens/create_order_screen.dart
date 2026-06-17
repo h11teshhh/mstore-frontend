@@ -159,14 +159,14 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       if (!mounted) return;
 
       // Stop Loading and Clear SnackBar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => isLoading = false);
 
       UIUtils.showSnackBar(context, "Order Created Successfully!");
       _showSuccessDialog();
     } on DioException catch (e) {
       // Clear Loading SnackBar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => isLoading = false);
 
       String msg = "Order failed";
@@ -175,7 +175,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       }
       UIUtils.showSnackBar(context, msg, isError: true);
     } catch (e) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => isLoading = false);
       UIUtils.showSnackBar(context, "Unexpected error occurred", isError: true);
     }

@@ -62,6 +62,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       final response = await api.getCustomers();
       if (!mounted) return;
 
+      AppToast.dismiss(); // clear refresh loading toast
       setState(() {
         allCustomers = response.data ?? [];
         filteredCustomers = allCustomers;

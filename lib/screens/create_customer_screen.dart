@@ -74,7 +74,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
 
       UIUtils.showSuccessDialog(
@@ -86,7 +86,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
       String msg = "Failed to create customer";
       if (e is DioException) {
@@ -278,6 +278,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                 const SizedBox(height: 16),
 
                 TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   controller: nameController,
                   decoration: UIUtils.inputDecoration("Customer Name", Icons.person_outline),
                   validator: (value) =>
@@ -286,6 +287,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                 const SizedBox(height: 16),
 
                 TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   controller: mobileController,
                   keyboardType: TextInputType.phone,
                   maxLength: 10,
@@ -306,6 +308,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                   onTap: _openAreaDrawer,
                   child: AbsorbPointer(
                     child: TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                       controller: dropdownDisplayController,
                       decoration: UIUtils.inputDecoration(
                         "Select Area",
@@ -327,6 +330,7 @@ class _CreateCustomerScreenState extends State<CreateCustomerScreen> {
                     opacity: _isOtherSelected ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 300),
                     child: TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                       controller: manualAreaController,
                       decoration: UIUtils.inputDecoration(
                         "Enter Manual Location",

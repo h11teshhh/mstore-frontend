@@ -72,7 +72,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       final response = await api.createUser(data);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
 
       UIUtils.showSuccessDialog(
@@ -84,7 +84,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
       setState(() => loading = false);
       String msg = "Failed to create user";
       if (e is DioException) {
@@ -338,6 +338,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                     const SizedBox(height: 16),
 
                                     TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       controller: nameController,
                                       decoration: UIUtils.inputDecoration(
                                         "Full Name",
@@ -351,6 +352,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                     const SizedBox(height: 16),
 
                                     TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       controller: mobileController,
                                       keyboardType: TextInputType.phone,
                                       maxLength: 10,
@@ -373,6 +375,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                       onTap: _openRoleDrawer,
                                       child: AbsorbPointer(
                                         child: TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                           controller: roleController,
                                           readOnly: true,
                                           decoration: UIUtils.inputDecoration(
@@ -389,6 +392,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                     const SizedBox(height: 16),
 
                                     TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       controller: passwordController,
                                       obscureText: _obscurePassword,
                                       decoration: UIUtils.inputDecoration(
@@ -416,6 +420,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                     const SizedBox(height: 16),
 
                                     TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       controller: addressController,
                                       decoration: UIUtils.inputDecoration(
                                         "Address",

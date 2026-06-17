@@ -4,7 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'app_constants.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AppToast — Global top-of-screen overlay toast (replaces SnackBar)
+// AppToast — Global top-of-screen overlay toast
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum _ToastType { success, error, info, loading }
@@ -27,7 +27,6 @@ class AppToast {
     _current = null;
   }
 
-  /// Internal method to show a toast overlay.
   static void _show(
     BuildContext context,
     String message,
@@ -35,7 +34,7 @@ class AppToast {
     Duration duration = const Duration(seconds: 3),
     bool autoDismiss = true,
   }) {
-    dismiss(); // Clear any existing toast first
+    dismiss();
 
     final overlay = Overlay.of(context, rootOverlay: true);
     late OverlayEntry entry;
@@ -63,29 +62,21 @@ class AppToast {
     _current = _ToastEntry(entry: entry, autoDismiss: timer);
   }
 
-  /// Show a success toast (green, auto-dismisses in 3s).
-  static void success(BuildContext context, String message) {
-    _show(context, message, _ToastType.success);
-  }
+  static void success(BuildContext context, String message) =>
+      _show(context, message, _ToastType.success);
 
-  /// Show an error toast (red, auto-dismisses in 4s).
-  static void error(BuildContext context, String message) {
-    _show(context, message, _ToastType.error,
-        duration: const Duration(seconds: 4));
-  }
+  static void error(BuildContext context, String message) =>
+      _show(context, message, _ToastType.error,
+          duration: const Duration(seconds: 4));
 
-  /// Show an info toast (primary, auto-dismisses in 3s).
-  static void info(BuildContext context, String message) {
-    _show(context, message, _ToastType.info);
-  }
+  static void info(BuildContext context, String message) =>
+      _show(context, message, _ToastType.info);
 
-  /// Show a persistent loading toast (stays until [dismiss] is called).
-  static void loading(BuildContext context, {String message = "Processing…"}) {
-    _show(context, message, _ToastType.loading, autoDismiss: false);
-  }
+  static void loading(BuildContext context, {String message = "Processing…"}) =>
+      _show(context, message, _ToastType.loading, autoDismiss: false);
 }
 
-// ─── Toast Widget ────────────────────────────────────────────────────────────
+// ─── Toast Widget ─────────────────────────────────────────────────────────────
 
 class _AppToastWidget extends StatefulWidget {
   final String message;
@@ -137,7 +128,6 @@ class _AppToastWidgetState extends State<_AppToastWidget>
       case _ToastType.error:
         return AppColors.danger;
       case _ToastType.loading:
-        return AppColors.primary;
       case _ToastType.info:
         return AppColors.primary;
     }
@@ -152,14 +142,13 @@ class _AppToastWidgetState extends State<_AppToastWidget>
       case _ToastType.info:
         return Icons.info_rounded;
       case _ToastType.loading:
-        return null; // spinner instead
+        return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
-
     return Positioned(
       top: topPad + 12,
       left: 16,
@@ -197,7 +186,6 @@ class _AppToastWidgetState extends State<_AppToastWidget>
               ),
               child: Row(
                 children: [
-                  // Icon or spinner
                   if (widget.type == _ToastType.loading)
                     const SizedBox(
                       width: 18,
@@ -210,7 +198,6 @@ class _AppToastWidgetState extends State<_AppToastWidget>
                   else
                     Icon(_icon, color: Colors.white, size: 18),
                   const SizedBox(width: 10),
-                  // Message
                   Expanded(
                     child: Text(
                       widget.message,
@@ -222,7 +209,6 @@ class _AppToastWidgetState extends State<_AppToastWidget>
                       ),
                     ),
                   ),
-                  // Tap-to-dismiss X (not on loading)
                   if (widget.type != _ToastType.loading) ...[
                     const SizedBox(width: 8),
                     GestureDetector(
@@ -245,11 +231,11 @@ class _AppToastWidgetState extends State<_AppToastWidget>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UIUtils — Public API (unchanged signatures so all callers work as-is)
+// UIUtils — Public API (all original signatures preserved)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class UIUtils {
-  // ── Toast wrappers (kept for backward-compat with fluttertoast callers) ──
+  // ── Legacy fluttertoast wrappers (kept for any direct callers) ────────────
 
   static void showSuccessToast(String message) {
     Fluttertoast.showToast(
@@ -273,10 +259,8 @@ class UIUtils {
     );
   }
 
-  // ── showSnackBar → now routes to AppToast ─────────────────────────────────
+  // ── showSnackBar → AppToast (same signature, zero screen changes needed) ──
 
-  /// Replaces the old floating snackbar. Same call signature — no changes
-  /// needed in any screen.
   static void showSnackBar(
     BuildContext context,
     String message, {
@@ -291,8 +275,6 @@ class UIUtils {
 
   // ── showProcessingSnackbar → AppToast.loading ─────────────────────────────
 
-  /// Replaces the old bottom-pinned progress snackbar. Call [hideProcessingSnackbar]
-  /// (or ScaffoldMessenger.of(context).hideCurrentSnackBar()) to dismiss it.
   static void showProcessingSnackbar(
     BuildContext context, {
     String message = "Processing, please wait...",
@@ -300,17 +282,8 @@ class UIUtils {
     AppToast.loading(context, message: message);
   }
 
-  // ── hideCurrentSnackBar compatibility ─────────────────────────────────────
-  // All existing screens call ScaffoldMessenger.of(context).hideCurrentSnackBar()
-  // to hide the processing snackbar. We keep that working by also exposing a
-  // helper — but since ScaffoldMessenger no longer owns these toasts, callers
-  // that still do ScaffoldMessenger.hideCurrentSnackBar() are harmless (it's a
-  // no-op). The AppToast.dismiss() auto-fires from showSnackBar anyway.
-  // No changes required in any screen.
-
   // ── Shared Success Dialog ─────────────────────────────────────────────────
 
-  /// Standard success dialog used across all form screens.
   static void showSuccessDialog(
     BuildContext context, {
     required String title,
@@ -385,7 +358,6 @@ class UIUtils {
 
   // ── Shared Form Widgets ───────────────────────────────────────────────────
 
-  /// Section label used above field groups in forms.
   static Widget buildLabel(String text) {
     return Text(
       text.toUpperCase(),
@@ -398,7 +370,6 @@ class UIUtils {
     );
   }
 
-  /// Standard input decoration used across all form screens.
   static InputDecoration inputDecoration(
     String label,
     IconData icon, {
@@ -441,7 +412,6 @@ class UIUtils {
     );
   }
 
-  /// Standard submit button used in all form screens.
   static Widget buildSubmitButton({
     required String label,
     required bool loading,

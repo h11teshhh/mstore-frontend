@@ -80,7 +80,7 @@ class _StockInScreenState extends State<StockInScreen> {
       if (!mounted) return;
 
       // Hide the processing snackbar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      AppToast.dismiss(); // dismiss loading toast
 
       _showSuccessDialog(
         response.data["message"] ?? "Stock added successfully",
@@ -95,7 +95,7 @@ class _StockInScreenState extends State<StockInScreen> {
       fetchItems();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Hide loading
+      AppToast.dismiss(); // dismiss loading toast // Hide loading
 
       String msg = "Failed to add stock";
       if (e is DioException) {
@@ -313,6 +313,7 @@ class _StockInScreenState extends State<StockInScreen> {
 
                                     // Item Selector
                                     DropdownButtonFormField<String>(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       initialValue: selectedItemId,
                                       decoration: UIUtils.inputDecoration(
                                         "Select Item",
@@ -359,6 +360,7 @@ class _StockInScreenState extends State<StockInScreen> {
 
                                     // Quantity Input
                                     TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                                       controller: quantityController,
                                       keyboardType: TextInputType.number,
                                       decoration: UIUtils.inputDecoration(
