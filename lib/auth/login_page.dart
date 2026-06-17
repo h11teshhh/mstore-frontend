@@ -115,13 +115,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   // ── LOGIN ────────────────────────────────────────────────────────────────
   Future<void> _handleLogin() async {
     if (_mobileCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) {
-      UIUtils.showErrorToast("Please enter mobile number and password");
+      UIUtils.showSnackBar(context, "Please enter mobile number and password", isError: true);
       return;
     }
     FocusScope.of(context).unfocus();
     setState(() => _loginLoading = true);
+    UIUtils.showProcessingSnackbar(context, message: "Logging in...");
     try {
       final res = await _api.login(_mobileCtrl.text.trim(), _passCtrl.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       if (res.data != null) {
         final token = res.data["access_token"];
         if (token != null) {
@@ -134,7 +137,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               MaterialPageRoute(builder: (_) => const Dashboard()), (_) => false);
         }
       }
-    } catch (_) {
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      String msg = "Invalid mobile number or password";
+      try {
+        final dynamic err = (e as dynamic).response?.data;
+        if (err is Map && err["detail"] != null) msg = err["detail"].toString();
+      } catch (_) {}
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally {
       if (mounted) setState(() => _loginLoading = false);
     }
@@ -143,13 +154,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   // ── FP STEP 1 — Master password ──────────────────────────────────────────
   Future<void> _handleMaster() async {
     final mp = _masterCtrl.text.trim();
-    if (mp.isEmpty) { UIUtils.showErrorToast("Please enter the master password"); return; }
+    if (mp.isEmpty) { UIUtils.showSnackBar(context, "Please enter the master password", isError: true); return; }
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
     try {
       await _api.forgotPasswordVerifyMaster(mp);
-      setState(() => _fpStep = 2);
-    } catch (_) {
+      if (mounted) setState(() => _fpStep = 2);
+    } catch (e) {
+      if (!mounted) return;
+      String msg = "Invalid master password";
+      try {
+        final dynamic err = (e as dynamic).response?.data;
+        if (err is Map && err["detail"] != null) msg = err["detail"].toString();
+      } catch (_) {}
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
@@ -164,10 +182,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     UIUtils.showProcessingSnackbar(context, message: "Sending verification code…");
     try {
       await _api.forgotPasswordSendOtp(mobile: mobile, email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _fpMobile = mobile;
       UIUtils.showSuccessToast("Code sent! Check your inbox.");
-      setState(() => _fpStep = 3);
-    } catch (_) {
+      if (mounted) setState(() => _fpStep = 3);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      String msg = "Failed to send code. Check your mobile number and email.";
+      try {
+        final dynamic err = (e as dynamic).response?.data;
+        if (err is Map && err["detail"] != null) msg = err["detail"].toString();
+      } catch (_) {}
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
@@ -176,17 +204,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     final otp     = _otpCtrl.text.trim();
     final newPass = _newPassCtrl.text.trim();
     final confPass= _confPassCtrl.text.trim();
-    if (otp.isEmpty)   { UIUtils.showErrorToast("Please enter the verification code"); return; }
-    if (otp.length < 4){ UIUtils.showErrorToast("Verification code is too short"); return; }
-    if (newPass.isEmpty){ UIUtils.showErrorToast("Please enter a new password"); return; }
-    if (newPass.length < 6){ UIUtils.showErrorToast("Password must be at least 6 characters"); return; }
-    if (newPass != confPass){ UIUtils.showErrorToast("Passwords do not match"); return; }
+    if (otp.isEmpty)    { UIUtils.showSnackBar(context, "Please enter the verification code", isError: true); return; }
+    if (otp.length < 4) { UIUtils.showSnackBar(context, "Verification code is too short", isError: true); return; }
+    if (newPass.isEmpty){ UIUtils.showSnackBar(context, "Please enter a new password", isError: true); return; }
+    if (newPass.length < 6){ UIUtils.showSnackBar(context, "Password must be at least 6 characters", isError: true); return; }
+    if (newPass != confPass){ UIUtils.showSnackBar(context, "Passwords do not match", isError: true); return; }
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
+    UIUtils.showProcessingSnackbar(context, message: "Resetting password...");
     try {
       await _api.forgotPasswordReset(mobile: _fpMobile, otp: otp, newPassword: newPass);
-      setState(() => _fpStep = 4);
-    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (mounted) setState(() => _fpStep = 4);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      String msg = "Invalid or expired verification code";
+      try {
+        final dynamic err = (e as dynamic).response?.data;
+        if (err is Map && err["detail"] != null) msg = err["detail"].toString();
+      } catch (_) {}
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally { if (mounted) setState(() => _fpLoading = false); }
   }
 
@@ -202,13 +241,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     errorText: errorText,
     errorStyle: const TextStyle(fontSize: 11),
     filled: true,
-    fillColor: AppColors.surface,
+    fillColor: AppColors.background,
     border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         borderSide: BorderSide.none),
     enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-        borderSide: const BorderSide(color: AppColors.borderColor, width: 1)),
+        borderSide: BorderSide.none),
     focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
         borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
