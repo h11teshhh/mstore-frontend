@@ -315,28 +315,39 @@ class _DashboardState extends State<Dashboard> {
                         logout();
                       }
                     },
-                    // The Visible Icon in AppBar
+                    // The Visible Icon in AppBar — elegant circle
                     child: Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primaryDark,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.30),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+                            color: AppColors.primary.withOpacity(0.40),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
                         ],
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
                       ),
                       child: Center(
                         child: Text(
                           name.isNotEmpty ? name[0].toUpperCase() : "U",
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -344,13 +355,13 @@ class _DashboardState extends State<Dashboard> {
                     ),
                     // The Dropdown Content
                     itemBuilder: (context) => [
-                      // ── 1. Profile header card ──────────────────────────
+                      // ── 1. Profile header ───────────────────────────────
                       PopupMenuItem<String>(
                         enabled: false,
                         padding: EdgeInsets.zero,
                         child: Container(
-                          width: 220,
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                          width: 230,
+                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                           decoration: const BoxDecoration(
                             color: AppColors.primaryLight,
                             borderRadius: BorderRadius.vertical(
@@ -360,20 +371,31 @@ class _DashboardState extends State<Dashboard> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // Avatar — solid primary rounded square
+                              // Circular gradient avatar with ring
                               Container(
-                                width: 42,
-                                height: 42,
+                                width: 46,
+                                height: 46,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  borderRadius: BorderRadius.circular(10),
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      AppColors.primary,
+                                      AppColors.primaryDark,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.primary.withOpacity(0.30),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
+                                      color: AppColors.primary.withOpacity(0.35),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2.5,
+                                  ),
                                 ),
                                 child: Center(
                                   child: Text(
@@ -382,13 +404,11 @@ class _DashboardState extends State<Dashboard> {
                                       color: Colors.white,
                                       fontWeight: FontWeight.w800,
                                       fontSize: 18,
-                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              // Name + role pill
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,16 +424,20 @@ class _DashboardState extends State<Dashboard> {
                                         fontSize: 14,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    // Role pill — solid primary (matches drawer)
+                                    const SizedBox(height: 5),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
-                                        vertical: 2,
+                                        vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(4),
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            AppColors.primary,
+                                            AppColors.primaryDark,
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
                                         role.toUpperCase(),
@@ -434,7 +458,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                       // ── 2. Divider ───────────────────────────────────────
                       const PopupMenuDivider(height: 1),
-                      // ── 3. Logout — danger tile (matches drawer style) ───
+                      // ── 3. Logout — danger tile ──────────────────────────
                       PopupMenuItem<String>(
                         value: 'logout',
                         padding: const EdgeInsets.symmetric(
@@ -588,10 +612,10 @@ class _DashboardState extends State<Dashboard> {
       child: SafeArea(
         child: Column(
           children: [
-            // ── Drawer header — themed to match AppBar profile ──────────
+            // ── Drawer header — circular elegant profile ────────────────
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               decoration: const BoxDecoration(
                 color: AppColors.primaryLight,
                 border: Border(
@@ -601,20 +625,25 @@ class _DashboardState extends State<Dashboard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Solid primary rounded-square avatar
+                  // Circular gradient avatar with white ring
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.primaryDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.30),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: AppColors.primary.withOpacity(0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
                         ),
                       ],
+                      border: Border.all(color: Colors.white, width: 3),
                     ),
                     child: Center(
                       child: Text(
@@ -623,7 +652,6 @@ class _DashboardState extends State<Dashboard> {
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
-                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -654,15 +682,17 @@ class _DashboardState extends State<Dashboard> {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        // Role pill — solid primary (same style as popup)
+                        // Role pill — gradient pill
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 10,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(4),
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.primaryDark],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             role.toUpperCase(),

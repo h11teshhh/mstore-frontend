@@ -176,7 +176,10 @@ class _BillsScreenState extends State<BillsScreen> {
     setState(() => bulkLoading = true);
     try {
       final doc = await _buildBulkDoc();
-      if (doc == null) return;
+      if (doc == null) {
+        AppToast.dismiss();
+        return;
+      }
       // LayoutCallback: FutureOr<Uint8List> Function(PdfPageFormat)
       await Printing.layoutPdf(
         onLayout: (_) => doc.save(),
@@ -193,7 +196,10 @@ class _BillsScreenState extends State<BillsScreen> {
     setState(() => bulkLoading = true);
     try {
       final doc = await _buildBulkDoc();
-      if (doc == null) return;
+      if (doc == null) {
+        AppToast.dismiss();
+        return;
+      }
       if (!mounted) return;
       await Navigator.push(context, MaterialPageRoute(
         builder: (_) => PdfPreview(
@@ -212,25 +218,33 @@ class _BillsScreenState extends State<BillsScreen> {
   Future<void> _bulkDownload() async {
     setState(() => bulkLoading = true);
     UIUtils.showProcessingSnackbar(context,
-        message: 'Generating ${_totalBillCount()} bills…');
+        message: 'Generating \${_totalBillCount()} bills…');
     try {
       final doc = await _buildBulkDoc();
-      if (doc == null) return;
-      final bytes   = await doc.save();          // Uint8List ✅
+      if (doc == null) {
+        AppToast.dismiss(); // clear toast if no bills
+        return;
+      }
+      final bytes   = await doc.save();
       final dateStr = DateFormat('ddMMMyyyy').format(DateTime.now());
-      final name    = 'AllBills_${selectedArea ?? "Area"}_$dateStr';
+      final name    = 'AllBills_\${selectedArea ?? "Area"}_\$dateStr';
       if (kIsWeb) {
-        // Web: open print dialog for download
         await Printing.layoutPdf(
           onLayout: (_) async => bytes,
           name: name,
         );
+        AppToast.dismiss();
+        UIUtils.showSnackBar(context, 'Bills ready for download!');
       } else {
+        AppToast.dismiss(); // clear before save (saveToDevice shows its own toast)
         await _saveToDevice(bytes, name, 'bulk');
       }
-      AppToast.dismiss(); // clear generating toast on success
-    } catch (_) {
-      UIUtils.showSnackBar(context, 'Download failed. Please try again.', isError: true);
+    } catch (e) {
+      AppToast.dismiss();
+      final msg = (e.toString().contains('permission'))
+          ? 'Storage permission denied. Please grant permission and retry.'
+          : 'Download failed. Please try again.';
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally {
       if (mounted) setState(() => bulkLoading = false);
     }

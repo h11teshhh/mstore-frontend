@@ -46,12 +46,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   int _fpStep = 1; // 1=master, 2=user id, 3=OTP+reset, 4=success
   String _fpMobile = "";
 
-  // Form keys for inline validation
+  // Form keys for inline validation — one per card face
   final _loginFormKey = GlobalKey<FormState>();
-
-  // Client-side validation state (instant feedback)
-  String? _emailError;
-  String? _mobileError;
+  final _step1FormKey = GlobalKey<FormState>();
+  final _step2FormKey = GlobalKey<FormState>();
+  final _step3FormKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -119,8 +118,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         _showFP = false;
         _isFlipping = false;
         _fpStep = 1;
-        _emailError = null;
-        _mobileError = null;
         for (final c in [
           _masterCtrl,
           _fpMobileCtrl,
@@ -131,34 +128,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ])
           c.clear();
       });
-  }
-
-  // ── Client-side validators (instant — no API) ────────────────────────────
-  bool _validateEmail(String email) {
-    final re = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (email.isEmpty) {
-      setState(() => _emailError = "Email is required");
-      return false;
-    }
-    if (!re.hasMatch(email)) {
-      setState(() => _emailError = "Enter a valid email address");
-      return false;
-    }
-    setState(() => _emailError = null);
-    return true;
-  }
-
-  bool _validateMobile(String mobile) {
-    if (mobile.isEmpty) {
-      setState(() => _mobileError = "Mobile number is required");
-      return false;
-    }
-    if (mobile.length != 10 || !RegExp(r'^\d{10}$').hasMatch(mobile)) {
-      setState(() => _mobileError = "Enter a valid 10-digit mobile number");
-      return false;
-    }
-    setState(() => _mobileError = null);
-    return true;
   }
 
   // ── LOGIN ────────────────────────────────────────────────────────────────
@@ -211,11 +180,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   // ── FP STEP 1 — Master password ──────────────────────────────────────────
   Future<void> _handleMaster() async {
-    final mp = _masterCtrl.text.trim();
-    if (mp.isEmpty) {
-      UIUtils.showSnackBar(context, "Please enter password", isError: true);
-      return;
-    }
+    if (!(_step1FormKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
     try {
@@ -236,10 +201,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   // ── FP STEP 2 — Validate + send OTP ─────────────────────────────────────
   Future<void> _handleSendOtp() async {
-    final mobile = _fpMobileCtrl.text.trim();
-    final email = _fpEmailCtrl.text.trim();
-    // Client-side validation FIRST — instant, no API
-    if (!_validateMobile(mobile) | !_validateEmail(email)) return;
+    if (!(_step2FormKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
     UIUtils.showProcessingSnackbar(
@@ -285,41 +247,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   // ── FP STEP 3 — Verify OTP + reset ──────────────────────────────────────
   Future<void> _handleReset() async {
-    final otp = _otpCtrl.text.trim();
+    if (!(_step3FormKey.currentState?.validate() ?? false)) return;
     final newPass = _newPassCtrl.text.trim();
     final confPass = _confPassCtrl.text.trim();
-    if (otp.isEmpty) {
-      UIUtils.showSnackBar(
-        context,
-        "Please enter the verification code",
-        isError: true,
-      );
-      return;
-    }
-    if (otp.length < 4) {
-      UIUtils.showSnackBar(
-        context,
-        "Verification code is too short",
-        isError: true,
-      );
-      return;
-    }
-    if (newPass.isEmpty) {
-      UIUtils.showSnackBar(
-        context,
-        "Please enter a new password",
-        isError: true,
-      );
-      return;
-    }
-    if (newPass.length < 6) {
-      UIUtils.showSnackBar(
-        context,
-        "Password must be at least 6 characters",
-        isError: true,
-      );
-      return;
-    }
+    // Cross-field password match check after form passes
     if (newPass != confPass) {
       UIUtils.showSnackBar(context, "Passwords do not match", isError: true);
       return;
@@ -479,140 +410,182 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   // ── FP Step widgets ───────────────────────────────────────────────────────
-  Widget _step1() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text("Admin Key", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _masterCtrl,
-        obscureText: _obscureMaster,
-        decoration: _dec(
-          hint: "Enter password",
-          icon: Icons.admin_panel_settings_outlined,
-          suffix: _visBtn(
-            _obscureMaster,
-            () => setState(() => _obscureMaster = !_obscureMaster),
-          ),
-        ),
-      ),
-      const SizedBox(height: 20),
-      _primaryBtn("VERIFY & CONTINUE", _fpLoading ? null : _handleMaster),
-    ],
-  );
-
-  Widget _step2() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.infoLight,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
-          border: Border.all(color: AppColors.info.withOpacity(0.3)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.info_outline, color: AppColors.info, size: 15),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                "A one-time code will be sent to the email you enter below.",
-                style: TextStyle(fontSize: 11, color: AppColors.textDark),
-              ),
+  Widget _step1() => Form(
+    key: _step1FormKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Admin Key", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _masterCtrl,
+          obscureText: _obscureMaster,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Enter password",
+            icon: Icons.admin_panel_settings_outlined,
+            suffix: _visBtn(
+              _obscureMaster,
+              () => setState(() => _obscureMaster = !_obscureMaster),
             ),
-          ],
+          ),
+          validator: (val) {
+            if (val == null || val.trim().isEmpty) return "Admin key is required";
+            return null;
+          },
         ),
-      ),
-      const SizedBox(height: 14),
-      const Text("Mobile Number", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _fpMobileCtrl,
-        keyboardType: TextInputType.phone,
-        maxLength: 10,
-        onChanged: (v) {
-          if (_mobileError != null) _validateMobile(v);
-        },
-        decoration: _dec(
-          hint: "10-digit mobile number",
-          icon: Icons.phone_android,
-          errorText: _mobileError,
-        ).copyWith(counterText: ""),
-      ),
-      const SizedBox(height: 12),
-      const Text("Email Address", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _fpEmailCtrl,
-        keyboardType: TextInputType.emailAddress,
-        onChanged: (v) {
-          if (_emailError != null) _validateEmail(v);
-        },
-        decoration: _dec(
-          hint: "Email to receive OTP",
-          icon: Icons.email_outlined,
-          errorText: _emailError,
-        ),
-      ),
-      const SizedBox(height: 20),
-      _primaryBtn("SEND CODE", _fpLoading ? null : _handleSendOtp),
-    ],
+        const SizedBox(height: 20),
+        _primaryBtn("VERIFY & CONTINUE", _fpLoading ? null : _handleMaster),
+      ],
+    ),
   );
 
-  Widget _step3() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text("Verification Code", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _otpCtrl,
-        keyboardType: TextInputType.number,
-        maxLength: 6,
-        style: const TextStyle(
-          letterSpacing: 6,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-        decoration: _dec(
-          hint: "••••••",
-          icon: Icons.lock_clock_outlined,
-        ).copyWith(counterText: ""),
-      ),
-      const SizedBox(height: 12),
-      const Text("New Password", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _newPassCtrl,
-        obscureText: _obscureNew,
-        decoration: _dec(
-          hint: "Min. 6 characters",
-          icon: Icons.lock_outline,
-          suffix: _visBtn(
-            _obscureNew,
-            () => setState(() => _obscureNew = !_obscureNew),
+  Widget _step2() => Form(
+    key: _step2FormKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.infoLight,
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadius),
+            border: Border.all(color: AppColors.info.withOpacity(0.3)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, color: AppColors.info, size: 15),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  "A one-time code will be sent to the email you enter below.",
+                  style: TextStyle(fontSize: 11, color: AppColors.textDark),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
-      const SizedBox(height: 12),
-      const Text("Confirm Password", style: AppTypography.label),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _confPassCtrl,
-        obscureText: _obscureConf,
-        decoration: _dec(
-          hint: "Re-enter password",
-          icon: Icons.lock_outline,
-          suffix: _visBtn(
-            _obscureConf,
-            () => setState(() => _obscureConf = !_obscureConf),
-          ),
+        const SizedBox(height: 14),
+        const Text("Mobile Number", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _fpMobileCtrl,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "10-digit mobile number",
+            icon: Icons.phone_android,
+          ).copyWith(counterText: ""),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Mobile number is required";
+            if (!RegExp(r'^\d{10}\$').hasMatch(v)) return "Enter a valid 10-digit number";
+            return null;
+          },
         ),
-      ),
-      const SizedBox(height: 20),
-      _primaryBtn("RESET PASSWORD", _fpLoading ? null : _handleReset),
-    ],
+        const SizedBox(height: 12),
+        const Text("Email Address", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _fpEmailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Email to receive OTP",
+            icon: Icons.email_outlined,
+          ),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Email is required";
+            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+\$').hasMatch(v)) {
+              return "Enter a valid email address";
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _primaryBtn("SEND CODE", _fpLoading ? null : _handleSendOtp),
+      ],
+    ),
+  );
+
+  Widget _step3() => Form(
+    key: _step3FormKey,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Verification Code", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _otpCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          style: const TextStyle(
+            letterSpacing: 6,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+          decoration: _dec(
+            hint: "••••••",
+            icon: Icons.lock_clock_outlined,
+          ).copyWith(counterText: ""),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Verification code is required";
+            if (v.length < 4) return "Code is too short";
+            return null;
+          },
+        ),
+        const SizedBox(height: 12),
+        const Text("New Password", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _newPassCtrl,
+          obscureText: _obscureNew,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Min. 6 characters",
+            icon: Icons.lock_outline,
+            suffix: _visBtn(
+              _obscureNew,
+              () => setState(() => _obscureNew = !_obscureNew),
+            ),
+          ),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "New password is required";
+            if (v.length < 6) return "Password must be at least 6 characters";
+            return null;
+          },
+        ),
+        const SizedBox(height: 12),
+        const Text("Confirm Password", style: AppTypography.label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _confPassCtrl,
+          obscureText: _obscureConf,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: _dec(
+            hint: "Re-enter password",
+            icon: Icons.lock_outline,
+            suffix: _visBtn(
+              _obscureConf,
+              () => setState(() => _obscureConf = !_obscureConf),
+            ),
+          ),
+          validator: (val) {
+            final v = val?.trim() ?? "";
+            if (v.isEmpty) return "Please confirm your password";
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        _primaryBtn("RESET PASSWORD", _fpLoading ? null : _handleReset),
+      ],
+    ),
   );
 
   Widget _step4() => Column(
