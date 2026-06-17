@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import '../storage/token_storage.dart';
-import '../utils/ui_utils.dart'; // Import the UI Utils for Toasts
 
 class ApiService {
   final Dio _dio = Dio(
@@ -68,10 +67,7 @@ class ApiService {
             }
           }
 
-          // 3. Show the error to the user via Toast (No terminal logs)
-          UIUtils.showErrorToast(errorMessage);
-
-          // 4. Pass the error along so the UI can stop skeletal loading
+          // Pass the error along so the UI can handle it
           return handler.next(e);
         },
       ),

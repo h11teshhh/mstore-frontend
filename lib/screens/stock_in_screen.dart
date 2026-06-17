@@ -54,14 +54,14 @@ class _StockInScreenState extends State<StockInScreen> {
       if (!mounted) return;
       setState(() => fetching = false);
       // ✅ Using UIUtils
-      UIUtils.showErrorToast("Failed to load inventory items");
+      UIUtils.showSnackBar(context, "Failed to load inventory items", isError: true);
     }
   }
 
   Future<void> submitStockIn() async {
     if (!_formKey.currentState!.validate()) return;
     if (selectedItemId == null) {
-      UIUtils.showErrorToast("Please select an item");
+      UIUtils.showSnackBar(context, "Please select an item", isError: true);
       return;
     }
 
@@ -102,7 +102,7 @@ class _StockInScreenState extends State<StockInScreen> {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally {
       if (mounted) setState(() => loading = false);
     }

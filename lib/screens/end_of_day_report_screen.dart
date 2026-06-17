@@ -57,7 +57,7 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 

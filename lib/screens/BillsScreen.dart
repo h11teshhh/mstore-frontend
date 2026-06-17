@@ -59,7 +59,7 @@ class _BillsScreenState extends State<BillsScreen> {
   // ── Fetch bills for selected area ─────────────────────────────────────────
   Future<void> fetchBills() async {
     if (selectedArea == null) {
-      UIUtils.showErrorToast('Please select an area first');
+      UIUtils.showSnackBar(context, 'Please select an area first', isError: true);
       return;
     }
     setState(() {
@@ -155,7 +155,7 @@ class _BillsScreenState extends State<BillsScreen> {
   //   • save() returns Future<Uint8List> — matches LayoutCallback exactly.
   Future<pw.Document?> _buildBulkDoc() async {
     if (billsByCustomer.isEmpty) {
-      UIUtils.showErrorToast('No bills loaded. Select an area first.');
+      UIUtils.showSnackBar(context, 'No bills loaded. Select an area first.', isError: true);
       return null;
     }
 
@@ -183,7 +183,7 @@ class _BillsScreenState extends State<BillsScreen> {
         name: 'All Bills - ${selectedArea ?? ""}',
       );
     } catch (_) {
-      UIUtils.showErrorToast('Could not generate bulk print. Try individual prints.');
+      UIUtils.showSnackBar(context, 'Could not generate bulk print. Try individual prints.', isError: true);
     } finally {
       if (mounted) setState(() => bulkLoading = false);
     }
@@ -203,7 +203,7 @@ class _BillsScreenState extends State<BillsScreen> {
         ),
       ));
     } catch (_) {
-      UIUtils.showErrorToast('Preview failed. Try individual previews.');
+      UIUtils.showSnackBar(context, 'Preview failed. Try individual previews.', isError: true);
     } finally {
       if (mounted) setState(() => bulkLoading = false);
     }
@@ -229,7 +229,7 @@ class _BillsScreenState extends State<BillsScreen> {
         await _saveToDevice(bytes, name, 'bulk');
       }
     } catch (_) {
-      UIUtils.showErrorToast('Download failed. Please try again.');
+      UIUtils.showSnackBar(context, 'Download failed. Please try again.', isError: true);
     } finally {
       if (mounted) setState(() => bulkLoading = false);
     }
@@ -259,7 +259,7 @@ class _BillsScreenState extends State<BillsScreen> {
       }
 
       if (!granted) {
-        UIUtils.showErrorToast('Storage permission denied.');
+        UIUtils.showSnackBar(context, 'Storage permission denied.', isError: true);
         return;
       }
 
@@ -275,9 +275,9 @@ class _BillsScreenState extends State<BillsScreen> {
       final date     = DateFormat('ddMMyy').format(DateTime.now());
       final fileName = 'Bill_${clean}_$date.pdf';
       await File('${dir!.path}/$fileName').writeAsBytes(bytes);
-      UIUtils.showSuccessToast('Saved: $fileName');
+      UIUtils.showSnackBar(context, 'Saved: $fileName');
     } catch (_) {
-      UIUtils.showErrorToast('Save failed. Please try again.');
+      UIUtils.showSnackBar(context, 'Save failed. Please try again.', isError: true);
     }
   }
 

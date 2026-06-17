@@ -76,7 +76,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 
@@ -106,7 +106,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         "/createCustomer",
       ).then((_) => fetchCustomers());
     } else {
-      UIUtils.showErrorToast("Permission Denied: Contact Administrator");
+      UIUtils.showSnackBar(context, "Permission Denied: Contact Administrator", isError: true);
     }
   }
 
@@ -323,7 +323,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     if (confirm != true) return;
     try {
       await api.deleteCustomer(customerId);
-      UIUtils.showSuccessToast("Customer deleted successfully");
+      UIUtils.showSnackBar(context, "Customer deleted successfully");
       fetchCustomers();
     } catch (_) {}
   }

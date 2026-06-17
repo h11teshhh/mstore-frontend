@@ -42,7 +42,7 @@ class _CustomerDetailState extends State<CustomerDetailScreen>
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args == null) {
         setState(() => loading = false);
-        UIUtils.showErrorToast('No customer ID provided');
+        UIUtils.showSnackBar(context, 'No customer ID provided', isError: true);
         return;
       }
       customerId = args.toString();
@@ -75,8 +75,8 @@ class _CustomerDetailState extends State<CustomerDetailScreen>
       if (!mounted) return;
       setState(() { loading = false; _error = 'error'; });
       if (e is DioException) {
-        UIUtils.showErrorToast(
-            e.response?.data?['detail']?.toString() ?? 'Failed to load profile');
+        UIUtils.showSnackBar(context,
+            e.response?.data?['detail']?.toString() ?? 'Failed to load profile', isError: true);
       }
     }
   }
@@ -266,7 +266,7 @@ class _CustomerDetailState extends State<CustomerDetailScreen>
                                 );
                                 if (!ctx.mounted) return;
                                 Navigator.pop(ctx);
-                                UIUtils.showSuccessToast(
+                                UIUtils.showSnackBar(context, 
                                     'Payment of ${_fmtCurrency(amt)} recorded');
                                 _loadAll();
                               } catch (_) {

@@ -104,7 +104,7 @@ class _UserListScreenState extends State<UserListScreen> {
     if (confirm != true) return;
     try {
       await api.deleteUser(userId);
-      UIUtils.showSuccessToast("User deleted successfully");
+      UIUtils.showSnackBar(context, "User deleted successfully");
       fetchUsers();
     } catch (_) {}
   }

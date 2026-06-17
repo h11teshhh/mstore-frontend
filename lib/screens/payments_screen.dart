@@ -96,14 +96,14 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
     } catch (e) {
       setState(() => isAreaLoading = false);
       // ✅ Using UIUtils
-      UIUtils.showErrorToast("Failed to load areas");
+      UIUtils.showSnackBar(context, "Failed to load areas", isError: true);
     }
   }
 
   // 2. Fetch Bills for Area
   Future<void> fetchBills() async {
     if (selectedArea == null) {
-      UIUtils.showErrorToast("Please select an area");
+      UIUtils.showSnackBar(context, "Please select an area", isError: true);
       return;
     }
 
@@ -140,7 +140,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 
@@ -162,7 +162,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
     }
 
     if (amountToPay <= 0) {
-      UIUtils.showErrorToast("Please enter a valid payment amount");
+      UIUtils.showSnackBar(context, "Please enter a valid payment amount", isError: true);
       return;
     }
 
@@ -220,7 +220,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
       await api.customerPayment(customerId: cid, amount: amountToPay);
 
       // ✅ Using UIUtils for Success
-      UIUtils.showSuccessToast("Payment Recorded Successfully");
+      UIUtils.showSnackBar(context, "Payment Recorded Successfully");
 
       // Clear input
       amountControllers[cid]?.clear();
@@ -241,7 +241,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> with WidgetsBindingObse
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils for Error
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }

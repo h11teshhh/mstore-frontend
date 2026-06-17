@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               token: token,
               name: res.data["name"] ?? "User",
               role: res.data["role"] ?? "Guest");
-          UIUtils.showSuccessToast("Welcome, ${res.data["name"] ?? "User"}!");
+          UIUtils.showSnackBar(context, "Welcome, ${res.data["name"] ?? "User"}!");
           if (mounted) Navigator.pushAndRemoveUntil(context,
               MaterialPageRoute(builder: (_) => const Dashboard()), (_) => false);
         }
@@ -185,7 +185,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _fpMobile = mobile;
-      UIUtils.showSuccessToast("Code sent! Check your inbox.");
+      UIUtils.showSnackBar(context, "Code sent! Check your inbox.");
       if (mounted) setState(() => _fpStep = 3);
     } catch (e) {
       if (!mounted) return;

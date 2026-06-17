@@ -70,7 +70,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 
@@ -336,7 +336,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     if (confirm != true) return;
     try {
       await api.deleteInventoryItem(itemId);
-      UIUtils.showSuccessToast("Item deleted successfully");
+      UIUtils.showSnackBar(context, "Item deleted successfully");
       fetchInventory();
     } catch (_) {}
   }

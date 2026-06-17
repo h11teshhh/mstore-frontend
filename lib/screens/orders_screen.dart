@@ -50,13 +50,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
     } catch (e) {
       setState(() => isAreaLoading = false);
-      UIUtils.showErrorToast("Failed to load areas");
+      UIUtils.showSnackBar(context, "Failed to load areas", isError: true);
     }
   }
 
   Future<void> fetchOrders() async {
     if (selectedArea == null) {
-      UIUtils.showErrorToast("Please select an area");
+      UIUtils.showSnackBar(context, "Please select an area", isError: true);
       return;
     }
 
@@ -117,7 +117,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       if (e is DioException) {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 

@@ -162,7 +162,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
 
-      UIUtils.showSuccessToast("Order Created Successfully!");
+      UIUtils.showSnackBar(context, "Order Created Successfully!");
       _showSuccessDialog();
     } on DioException catch (e) {
       // Clear Loading SnackBar

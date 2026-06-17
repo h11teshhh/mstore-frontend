@@ -49,7 +49,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         msg = e.response?.data["detail"]?.toString() ?? msg;
       }
       // ✅ Using UIUtils
-      UIUtils.showErrorToast(msg);
+      UIUtils.showSnackBar(context, msg, isError: true);
     }
   }
 
