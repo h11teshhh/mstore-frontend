@@ -259,10 +259,26 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      String msg = "Failed to send code. Check your mobile number and email.";
+      String msg = "Couldn't send verification code. Please try again.";
       try {
         final dynamic err = (e as dynamic).response?.data;
-        if (err is Map && err["detail"] != null) msg = err["detail"].toString();
+        if (err is Map && err["detail"] != null) {
+          final String detail = err["detail"].toString().toLowerCase();
+          // Map internal error codes/keywords to friendly messages
+          if (detail.contains("mobile number not found")) {
+            msg = "Mobile number not registered. Please check and try again.";
+          } else if (detail.contains("contact support") ||
+              detail.contains("misconfigured") ||
+              detail.contains("not verified") ||
+              detail.contains("authentication failed")) {
+            msg = "Unable to send code right now. Please contact support.";
+          } else if (detail.contains("try again")) {
+            msg = "Couldn't send verification code. Please try again in a few minutes.";
+          } else if (detail.contains("invalid") || detail.contains("not found")) {
+            msg = err["detail"].toString(); // safe to show these
+          }
+          // All other internal errors stay as the generic friendly message
+        }
       } catch (_) {}
       UIUtils.showSnackBar(context, msg, isError: true);
     } finally {
