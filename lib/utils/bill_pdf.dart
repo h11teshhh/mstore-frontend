@@ -1,9 +1,20 @@
-import 'dart:math';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 
 class BillPdf {
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRIVATE: mask an ID → first 3 chars + "…" + last 4 chars.
+  // e.g. "CUST00123456" → "CUS…3456"
+  // Safe for short IDs: if length ≤ 7 the full value is returned as-is.
+  // ─────────────────────────────────────────────────────────────────────────
+  static String _maskId(String id) {
+    if (id.length <= 7) return id;
+    final head = id.substring(0, 3);
+    final tail = id.substring(id.length - 4);
+    return '$head$tail';
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // PUBLIC: build a ready-to-add pw.Page from bill data.
   // Used by both single-bill and bulk-PDF flows.
@@ -22,10 +33,9 @@ class BillPdf {
     final dateStr = DateFormat('dd-MM-yyyy').format(billDate);
     final grandTotal = todayBill + previousDue;
 
-    final rand = Random();
-    final prefix = rand.nextInt(9000) + 1000;
-    final maskedCust = '$prefix-$customerId-C';
-    final maskedOrder = '$prefix-$orderId-O';
+    // ✅ First 3 + last 4 masking — no random prefix
+    final maskedCust = _maskId(customerId);
+    final maskedOrder = _maskId(orderId);
 
     const colSl = 35.0;
     const colQty = 45.0;
@@ -324,7 +334,6 @@ class BillPdf {
 
   // ─────────────────────────────────────────────────────────────────────────
   // PUBLIC: generate a multi-page bulk Document from a list of bill specs.
-  // Each bill = one A5-landscape page. One document, one save(), one Uint8List.
   // ─────────────────────────────────────────────────────────────────────────
   static pw.Document generateBulk(List<BillSpec> specs) {
     final doc = pw.Document();

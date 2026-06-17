@@ -40,8 +40,6 @@ class _DashboardState extends State<Dashboard> {
   }
 
   /// Schedules a timer to fire at exactly 12:00 AM IST (Asia/Kolkata = UTC+5:30).
-  /// Also schedules a periodic check every minute as a safety net in case
-  /// the app is backgrounded and the single Timer fires late.
   void _scheduleMidnightLogout() {
     _midnightTimer?.cancel();
     final due = _durationToMidnightIST();
@@ -50,30 +48,41 @@ class _DashboardState extends State<Dashboard> {
 
   Duration _durationToMidnightIST() {
     const istOffset = Duration(hours: 5, minutes: 30);
-    final nowIst        = DateTime.now().toUtc().add(istOffset);
-    final midnightIst   = DateTime(nowIst.year, nowIst.month, nowIst.day + 1, 0, 0, 0);
-    final diff          = midnightIst.difference(nowIst);
-    // Safety: never return negative or zero duration
+    final nowIst = DateTime.now().toUtc().add(istOffset);
+    final midnightIst = DateTime(
+      nowIst.year,
+      nowIst.month,
+      nowIst.day + 1,
+      0,
+      0,
+      0,
+    );
+    final diff = midnightIst.difference(nowIst);
     return diff.isNegative ? const Duration(seconds: 30) : diff;
   }
-
 
   Future<void> _onSessionExpired() async {
     await storage.clearAll();
     if (!mounted) return;
-    // Show formal session expired dialog instead of just a toast
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Row(children: [
-          Icon(Icons.lock_clock_outlined, color: Color(0xFF5F63F2), size: 24),
-          SizedBox(width: 10),
-          Text("Session Expired",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3748))),
-        ]),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_clock_outlined, color: Color(0xFF5F63F2), size: 24),
+            SizedBox(width: 10),
+            Text(
+              "Session Expired",
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D3748),
+              ),
+            ),
+          ],
+        ),
         content: const Text(
           "Your session has expired for security reasons.\n"
           "Please log in again to continue.",
@@ -84,12 +93,17 @@ class _DashboardState extends State<Dashboard> {
             onPressed: () {
               Navigator.of(ctx).pop();
               Navigator.pushNamedAndRemoveUntil(
-                  context, "/login", (route) => false);
+                context,
+                "/login",
+                (route) => false,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF5F63F2),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text("Log In Again"),
           ),
@@ -99,7 +113,6 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> _initLoad() async {
-    // Artificial delay for skeleton effect
     await loadUser();
     if (mounted) setState(() => _isLoading = false);
   }
@@ -108,9 +121,7 @@ class _DashboardState extends State<Dashboard> {
     try {
       final storedName = await storage.getName();
       final storedRole = await storage.getRole();
-
       if (storedRole == null) return;
-
       setState(() {
         name = storedName ?? "User";
         role = storedRole;
@@ -122,14 +133,11 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> logout() async {
-    // ✅ UIUtils: Show loading toast
     UIUtils.showProcessingSnackbar(context, message: "Logging out...");
-
     await Future.delayed(const Duration(milliseconds: 500));
     await storage.clearAll();
-
     if (mounted) {
-      AppToast.dismiss(); // Dismiss loading toast before navigating
+      AppToast.dismiss();
       Navigator.pushReplacementNamed(context, "/login");
     }
   }
@@ -246,7 +254,7 @@ class _DashboardState extends State<Dashboard> {
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
 
-      // ✅ 1. CUSTOM APP BAR WITH PROFILE MENU
+      // ── APP BAR ────────────────────────────────────────────────────────────
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
         child: ClipRRect(
@@ -301,114 +309,105 @@ class _DashboardState extends State<Dashboard> {
                 ],
               ),
               actions: [
-                // ✅ PROFILE DROPDOWN MENU
+                // ── PROFILE DROPDOWN ─────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
+                  padding: const EdgeInsets.only(right: 14.0),
                   child: PopupMenuButton<String>(
-                    offset: const Offset(0, 50),
+                    offset: const Offset(0, 46),
+                    elevation: 8,
+                    shadowColor: Colors.black.withOpacity(0.08),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: AppColors.borderColor, width: 1),
                     ),
-                    tooltip: 'Profile',
+                    tooltip: '',
                     onSelected: (value) {
-                      if (value == 'logout') {
-                        logout();
-                      }
+                      if (value == 'logout') logout();
                     },
-                    // The Visible Icon in AppBar — elegant circle
+
+                    // ── Avatar chip ───────────────────────────────────────
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 0,
+                      ),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primaryDark,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.2),
+                          width: 1.2,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.40),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Initial circle
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary.withOpacity(0.12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : "U",
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 16,
+                            color: AppColors.primary.withOpacity(0.7),
                           ),
                         ],
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : "U",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
                       ),
                     ),
-                    // The Dropdown Content
+
+                    // ── Dropdown items ────────────────────────────────────
                     itemBuilder: (context) => [
-                      // ── 1. Profile header ───────────────────────────────
+                      // 1. Profile header
                       PopupMenuItem<String>(
                         enabled: false,
                         padding: EdgeInsets.zero,
-                        child: Container(
-                          width: 230,
-                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(12),
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // Circular gradient avatar with ring
+                              // Avatar
                               Container(
-                                width: 46,
-                                height: 46,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      AppColors.primary,
-                                      AppColors.primaryDark,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary.withOpacity(0.35),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  color: AppColors.primaryLight,
                                   border: Border.all(
-                                    color: Colors.white,
-                                    width: 2.5,
+                                    color: AppColors.primary.withOpacity(0.2),
+                                    width: 1.5,
                                   ),
                                 ),
                                 child: Center(
                                   child: Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : "U",
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : "U",
                                     style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 18,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,34 +418,17 @@ class _DashboardState extends State<Dashboard> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                         color: AppColors.textHeading,
-                                        fontSize: 14,
+                                        fontSize: 13,
                                       ),
                                     ),
-                                    const SizedBox(height: 5),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            AppColors.primary,
-                                            AppColors.primaryDark,
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        role.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.8,
-                                        ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      role,
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 11,
                                       ),
                                     ),
                                   ],
@@ -456,42 +438,32 @@ class _DashboardState extends State<Dashboard> {
                           ),
                         ),
                       ),
-                      // ── 2. Divider ───────────────────────────────────────
+
+                      // 2. Divider
                       const PopupMenuDivider(height: 1),
-                      // ── 3. Logout — danger tile ──────────────────────────
+
+                      // 3. Logout
                       PopupMenuItem<String>(
                         value: 'logout',
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.logout_rounded,
+                        height: 42,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.logout_rounded,
+                              color: AppColors.danger,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Logout",
+                              style: TextStyle(
                                 color: AppColors.danger,
-                                size: 18,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
-                              SizedBox(width: 10),
-                              Text(
-                                "Logout",
-                                style: TextStyle(
-                                  color: AppColors.danger,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -513,7 +485,6 @@ class _DashboardState extends State<Dashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Grid
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -562,9 +533,8 @@ class _DashboardState extends State<Dashboard> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            // ✅ FIX: Space reduction logic
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 height: 42,
@@ -575,7 +545,7 @@ class _DashboardState extends State<Dashboard> {
                 ),
                 child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(height: 12), // ✅ Reduced space
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -583,12 +553,12 @@ class _DashboardState extends State<Dashboard> {
                     child: Text(
                       title,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis, // Prevent overflow
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: AppColors.textHeading,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        height: 1.1, // Tighter line height
+                        height: 1.1,
                       ),
                     ),
                   ),
@@ -612,7 +582,7 @@ class _DashboardState extends State<Dashboard> {
       child: SafeArea(
         child: Column(
           children: [
-            // ── Drawer header — circular elegant profile ────────────────
+            // ── Drawer header ───────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -625,7 +595,6 @@ class _DashboardState extends State<Dashboard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Circular gradient avatar with white ring
                   Container(
                     width: 52,
                     height: 52,
@@ -682,7 +651,6 @@ class _DashboardState extends State<Dashboard> {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        // Role pill — gradient pill
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -690,7 +658,10 @@ class _DashboardState extends State<Dashboard> {
                           ),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryDark],
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primaryDark,
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -714,7 +685,7 @@ class _DashboardState extends State<Dashboard> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 itemCount: drawerList.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 4),
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
                 itemBuilder: (context, index) {
                   final item = drawerList[index];
                   return ListTile(
@@ -786,7 +757,7 @@ class _DashboardState extends State<Dashboard> {
                   childAspectRatio: 1.4,
                 ),
                 itemCount: 6,
-                itemBuilder: (_, _) =>
+                itemBuilder: (_, __) =>
                     const SkeletalLoader(height: 100, borderRadius: 20),
               ),
             ),

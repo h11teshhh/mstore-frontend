@@ -184,7 +184,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     FocusScope.of(context).unfocus();
     setState(() => _fpLoading = true);
     try {
-      await _api.forgotPasswordVerifyMaster(mp);
+      await _api.forgotPasswordVerifyMaster(_masterCtrl.text.trim());
       if (mounted) setState(() => _fpStep = 2);
     } catch (e) {
       if (!mounted) return;
@@ -209,10 +209,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       message: "Sending verification code…",
     );
     try {
-      await _api.forgotPasswordSendOtp(mobile: mobile, email: email);
-      if (!mounted) return;
-      AppToast.dismiss(); // dismiss loading toast
-      _fpMobile = mobile;
+      await _api.forgotPasswordSendOtp(
+        mobile: _fpMobileCtrl.text.trim(),
+        email: _fpEmailCtrl.text.trim(),
+      );
+      _fpMobile = _fpMobileCtrl.text.trim();
       UIUtils.showSnackBar(context, "Code sent! Check your inbox.");
       if (mounted) setState(() => _fpStep = 3);
     } catch (e) {
@@ -232,8 +233,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               detail.contains("authentication failed")) {
             msg = "Unable to send code right now. Please contact support.";
           } else if (detail.contains("try again")) {
-            msg = "Couldn't send verification code. Please try again in a few minutes.";
-          } else if (detail.contains("invalid") || detail.contains("not found")) {
+            msg =
+                "Couldn't send verification code. Please try again in a few minutes.";
+          } else if (detail.contains("invalid") ||
+              detail.contains("not found")) {
             msg = err["detail"].toString(); // safe to show these
           }
           // All other internal errors stay as the generic friendly message
@@ -261,7 +264,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     try {
       await _api.forgotPasswordReset(
         mobile: _fpMobile,
-        otp: otp,
+        otp: _otpCtrl.text.trim(),
         newPassword: newPass,
       );
       if (!mounted) return;
@@ -430,7 +433,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
           ),
           validator: (val) {
-            if (val == null || val.trim().isEmpty) return "Admin key is required";
+            if (val == null || val.trim().isEmpty)
+              return "Admin key is required";
             return null;
           },
         ),
@@ -481,7 +485,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           validator: (val) {
             final v = val?.trim() ?? "";
             if (v.isEmpty) return "Mobile number is required";
-            if (!RegExp(r'^\d{10}\$').hasMatch(v)) return "Enter a valid 10-digit number";
+            if (!RegExp(r'^\d{10}$').hasMatch(v))
+              return "Enter a valid 10-digit number";
             return null;
           },
         ),
@@ -499,7 +504,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           validator: (val) {
             final v = val?.trim() ?? "";
             if (v.isEmpty) return "Email is required";
-            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+\$').hasMatch(v)) {
+            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
               return "Enter a valid email address";
             }
             return null;
