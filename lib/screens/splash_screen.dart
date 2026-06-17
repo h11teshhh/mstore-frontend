@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true, // ✅ Content behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR (Minimal for Splash)
       appBar: AppBar(
@@ -169,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen>
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF566a7f),
+                      color: AppColors.textHeading,
                       letterSpacing: 1.2,
                     ),
                   ),

@@ -68,11 +68,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         // ✅ Status Bar Visibility
@@ -95,7 +95,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF566a7f),
+                color: AppColors.textHeading,
               ),
             ),
             onPressed: () => Navigator.maybePop(context),
@@ -104,7 +104,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         title: const Text(
           "Delivery Load",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
@@ -341,7 +341,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F9),
+            color: AppColors.background,
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(

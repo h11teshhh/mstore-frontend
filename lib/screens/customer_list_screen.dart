@@ -145,7 +145,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF566a7f),
+                color: AppColors.textHeading,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -154,7 +154,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         title: const Text(
           "Customers",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
@@ -393,7 +393,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Color(0xFF566a7f),
+                          color: AppColors.textHeading,
                         ),
                       ),
                       const SizedBox(height: 4),

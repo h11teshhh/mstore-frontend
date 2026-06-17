@@ -139,7 +139,7 @@ class _StockInScreenState extends State<StockInScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF566a7f),
+                  color: AppColors.textHeading,
                 ),
               ),
               const SizedBox(height: 8),
@@ -181,11 +181,11 @@ class _StockInScreenState extends State<StockInScreen> {
     final double topOffset = size.height * 0.10;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         // ✅ Status Bar Visibility
@@ -208,7 +208,7 @@ class _StockInScreenState extends State<StockInScreen> {
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF566a7f),
+                color: AppColors.textHeading,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -217,7 +217,7 @@ class _StockInScreenState extends State<StockInScreen> {
         title: const Text(
           "Add Stock",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
@@ -308,13 +308,13 @@ class _StockInScreenState extends State<StockInScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel("Stock Details"),
+                                    UIUtils.buildLabel("Stock Details"),
                                     const SizedBox(height: 16),
 
                                     // Item Selector
                                     DropdownButtonFormField<String>(
                                       initialValue: selectedItemId,
-                                      decoration: _inputDecoration(
+                                      decoration: UIUtils.inputDecoration(
                                         "Select Item",
                                         Icons.inventory_2_outlined,
                                       ),
@@ -361,7 +361,7 @@ class _StockInScreenState extends State<StockInScreen> {
                                     TextFormField(
                                       controller: quantityController,
                                       keyboardType: TextInputType.number,
-                                      decoration: _inputDecoration(
+                                      decoration: UIUtils.inputDecoration(
                                         "Quantity to Add",
                                         Icons.add_circle_outline,
                                       ),
@@ -438,41 +438,6 @@ class _StockInScreenState extends State<StockInScreen> {
   }
 
   // --- WIDGET HELPER METHODS ---
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: Colors.grey[500],
-        letterSpacing: 1.0,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: Colors.grey[600]),
-      prefixIcon: Icon(
-        icon,
-        color: AppColors.primary.withOpacity(0.7),
-        size: 22,
-      ),
-      filled: true,
-      fillColor: const Color(0xFFF5F5F9),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-    );
-  }
 
   // --- SKELETON FORM ---
   Widget _buildSkeletonForm() {

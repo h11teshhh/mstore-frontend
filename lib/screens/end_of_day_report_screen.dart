@@ -86,11 +86,11 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9), // Sneat Background
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true, // ✅ Content goes behind AppBar
       // ✅ 1. PRODUCTIVE SNEAT APP BAR
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.95),
+        backgroundColor: AppColors.background.withOpacity(0.95),
         elevation: 0,
         centerTitle: true,
         // ✅ Status Bar Visibility
@@ -113,7 +113,7 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF566a7f),
+                color: AppColors.textHeading,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -122,7 +122,7 @@ class _EndOfDayReportScreenState extends State<EndOfDayReportScreen>
         title: const Text(
           "End of Day Report",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',

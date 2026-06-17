@@ -121,7 +121,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
-                color: Color(0xFF566a7f),
+                color: AppColors.textHeading,
               ),
             ),
             onPressed: () => Navigator.pop(context),
@@ -130,7 +130,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
         title: const Text(
           "Inventory Stock",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
@@ -393,7 +393,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
           ),
         ),
         subtitle: Column(

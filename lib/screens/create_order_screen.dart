@@ -5,7 +5,8 @@ import 'dart:async'; // For UI delay
 
 import '../api/api_service.dart';
 import '../utils/app_constants.dart';
-import '../utils/skeletal_loader.dart'; // ✅ Reusing your specific loader
+import '../utils/skeletal_loader.dart';
+import '../utils/ui_utils.dart';
 
 class CreateOrderScreen extends StatefulWidget {
   const CreateOrderScreen({super.key});
@@ -55,61 +56,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     }
   }
 
-  // ✅ CODE REUSABILITY: Toast Helper (For Error/Success)
-  // Simulating a Toast using ScaffoldMessenger for 'copy-paste' compatibility
-  // without needing external packages like 'fluttertoast'.
-  void showToast(String message, {bool isError = false}) {
-    // Clear any existing snackbars/toasts first
-    ScaffoldMessenger.of(context).clearSnackBars();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: isError ? AppColors.danger : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        width: 280, // Fixed width to look like a "Toast"
-        elevation: 6,
-        duration: const Duration(seconds: 2), // Short duration for Toasts
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-      ),
-    );
-  }
-
-  // ✅ CODE REUSABILITY: SnackBar Helper (For Wait/Continuous)
-  void showLoadingSnackBar(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Text(message),
-          ],
-        ),
-        backgroundColor: Colors.black87,
-        behavior: SnackBarBehavior.fixed, // Bottom fixed for continuous
-        duration: const Duration(
-          days: 1,
-        ), // Keeps showing until manually hidden
-      ),
-    );
-  }
-
   Future<void> loadData() async {
     if (mounted) setState(() => _isTimeout = false);
 
@@ -140,7 +86,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     } on TimeoutException {
       if (mounted) setState(() => _isTimeout = true);
     } catch (e) {
-      if (mounted) showToast("Failed to load data", isError: true);
+      if (mounted) UIUtils.showSnackBar(context, "Failed to load data", isError: true);
     }
   }
 
@@ -170,11 +116,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   Future<void> submitOrder() async {
     // --- Validation (Uses Toasts) ---
     if (selectedArea == null) {
-      showToast("Please select an area", isError: true);
+      UIUtils.showSnackBar(context, "Please select an area", isError: true);
       return;
     }
     if (selectedCustomerId == null) {
-      showToast("Please select a customer", isError: true);
+      UIUtils.showSnackBar(context, "Please select a customer", isError: true);
       return;
     }
 
@@ -187,11 +133,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         int qty = int.tryParse(qtyText) ?? 0;
 
         if (qty <= 0) {
-          showToast("Invalid quantity for ${item["item_name"]}", isError: true);
+          UIUtils.showSnackBar(context, "Invalid quantity for ${item["item_name"]}", isError: true);
           return;
         }
         if (qty > stock) {
-          showToast("Not enough stock for ${item["item_name"]}", isError: true);
+          UIUtils.showSnackBar(context, "Not enough stock for ${item["item_name"]}", isError: true);
           return;
         }
         items.add({"item_id": itemId, "quantity": qty});
@@ -199,13 +145,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     }
 
     if (items.isEmpty) {
-      showToast("Please select at least one item", isError: true);
+      UIUtils.showSnackBar(context, "Please select at least one item", isError: true);
       return;
     }
 
     // --- Start Continuous Process (Uses SnackBar) ---
     setState(() => isLoading = true);
-    showLoadingSnackBar("Processing Order..."); // Show "Wait" SnackBar
+    UIUtils.showProcessingSnackbar(context, message: "Processing Order...");
 
     try {
       await api.createOrder(customerId: selectedCustomerId!, items: items);
@@ -216,7 +162,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
 
-      showToast("Order Created Successfully!"); // Show Success Toast
+      UIUtils.showSuccessToast("Order Created Successfully!");
       _showSuccessDialog();
     } on DioException catch (e) {
       // Clear Loading SnackBar
@@ -227,11 +173,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
       if (e.response?.data != null && e.response!.data is Map) {
         msg = e.response!.data["detail"]?.toString() ?? msg;
       }
-      showToast(msg, isError: true); // Show Error Toast
+      UIUtils.showSnackBar(context, msg, isError: true);
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       setState(() => isLoading = false);
-      showToast("Unexpected error occurred", isError: true); // Show Error Toast
+      UIUtils.showSnackBar(context, "Unexpected error occurred", isError: true);
     }
   }
 
@@ -267,7 +213,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF566a7f),
+                  color: AppColors.textHeading,
                 ),
               ),
               const SizedBox(height: 8),
@@ -320,11 +266,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
     final int selectedCount = selectedItems.values.where((e) => e).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F9),
+      backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F9).withOpacity(0.9),
+        backgroundColor: AppColors.background.withOpacity(0.9),
         elevation: 0,
         centerTitle: true,
         systemOverlayStyle: const SystemUiOverlayStyle(
@@ -355,7 +301,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         title: const Text(
           "Create Order",
           style: TextStyle(
-            color: Color(0xFF566a7f),
+            color: AppColors.textHeading,
             fontWeight: FontWeight.bold,
             fontSize: 20,
             fontFamily: 'PublicSans',
@@ -720,7 +666,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                           fontSize: 16,
                           color: isOutOfStock
                               ? Colors.grey
-                              : const Color(0xFF566a7f),
+                              : AppColors.textHeading,
                           decoration: isOutOfStock
                               ? TextDecoration.lineThrough
                               : null,
@@ -827,7 +773,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         size: 20,
       ),
       filled: true,
-      fillColor: const Color(0xFFF5F5F9),
+      fillColor: AppColors.background,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
